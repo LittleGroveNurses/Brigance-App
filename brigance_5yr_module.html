@@ -1,0 +1,435 @@
+<!--
+  ════════════════════════════════════════════════════════════════════
+  BRIGANCE® Screens III — Five-Year-Old / Foundation Data Entry Module
+  Little Grove · Child, Adolescent & Family Health · App 2
+
+  INTEGRATION:
+  1. The <style> block is in brigance_2yr_module.html — do NOT duplicate it.
+  2. Paste the HTML panels wherever the Brigance section should appear.
+  3. Paste the <script> block before </body>.
+  4. Call  BriganceInit5({ ageInDays: <number> })  once child DOB is known.
+  5. To retrieve results:
+       const r = BriganceGetResults5();
+       // returns { total, physRaw, langRaw, acadRaw, shRaw, seRaw,
+       //           physComp, langComp, acadComp, shComp, seComp,
+       //           bandLabel, classification }
+  6. Show panels via showBrgTab5(name) — 'entry' | 'shse' | 'results'
+  ════════════════════════════════════════════════════════════════════
+-->
+
+<div id="brg-5-panel-entry" class="brg-panel" style="display:none">
+
+  <div class="brg-band-notice" id="brg-5-band-notice">
+    ⚠ Age not yet calculated — enter child's DOB and screening date to determine the age band and enable composite scoring.
+  </div>
+
+  <div class="brg-totals">
+    <h3>Running Score — Five-Year-Old / Foundation Data Sheet</h3>
+    <div class="brg-big"><span id="brg-5-total">0</span><small> / 100</small></div>
+    <div class="brg-chips">
+      <div class="brg-chip phys"><div class="n" id="brg-5-p">0</div><div class="lbl">Physical</div><div class="mx">/ 12.5</div></div>
+      <div class="brg-chip lang"><div class="n" id="brg-5-l">0</div><div class="lbl">Language</div><div class="mx">/ 16</div></div>
+      <div class="brg-chip acad"><div class="n" id="brg-5-a">0</div><div class="lbl">Academic / Cog</div><div class="mx">/ 71.5</div></div>
+    </div>
+  </div>
+
+  <div id="brg-5-asmts"></div>
+</div>
+
+<div id="brg-5-panel-shse" class="brg-panel" style="display:none">
+  <div class="brg-shse-totals">
+    <h3>Running Score — Self-help &amp; Social-Emotional Scales</h3>
+    <div class="brg-shse-chips">
+      <div class="brg-scard sh">
+        <h4>Self-help Skills</h4>
+        <div class="brg-sraw"><span id="brg-5-sh-raw">0</span> / 17</div>
+        <div class="brg-scomp" id="brg-5-sh-comp">—</div>
+        <div class="brg-ssem" id="brg-5-sh-sem"></div>
+      </div>
+      <div class="brg-scard se">
+        <h4>Social-Emotional</h4>
+        <div class="brg-sraw"><span id="brg-5-se-raw">0</span> / 16</div>
+        <div class="brg-scomp" id="brg-5-se-comp">—</div>
+        <div class="brg-ssem" id="brg-5-se-sem"></div>
+      </div>
+    </div>
+  </div>
+  <div id="brg-5-shse-items"></div>
+</div>
+
+<div id="brg-5-panel-results" class="brg-panel" style="display:none">
+  <div id="brg-5-results-body">
+    <p style="color:#888;font-size:0.85rem;text-align:center;padding:20px">Complete the Data Sheet and Self-help &amp; SE sections, then tap Brigance Results.</p>
+  </div>
+</div>
+
+<script id="brigance-5yr-module">
+(function(){
+// ══════════════════════════════════════════════════════════
+// FIVE-YEAR-OLD / FOUNDATION ASSESSMENT DATA
+// Source: BRIGANCE® Screens III © 2014 Curriculum Associates
+// Hawker Brownlow Education CA14300
+// ══════════════════════════════════════════════════════════
+const ASMTS5=[
+  {code:'1A',domain:'acad',domainLabel:'Academic / Cognitive',title:'Knows Personal Information',pts:1.5,max:9,
+   note:'Knows: first name, last name, age, birthday (month & day), telephone number, street address',
+   items:['first name','last name','age','birthday (month & day)','telephone number','street address']},
+  {code:'2A',domain:'lang',domainLabel:'Language Development',title:'Names Parts of the Body',pts:1,max:6,
+   note:'Names: thumbs, fingernails, chin, chest, elbows, shoulders',
+   items:['thumbs','fingernails','chin','chest','elbows','shoulders']},
+  {code:'3A',domain:'phys',domainLabel:'Physical Development',title:'Gross Motor Skills',pts:1,max:5,
+   items:[
+     'Stands on one foot for ten seconds',
+     'Stands on other foot for ten seconds',
+     'Stands on one foot for one second with eyes closed',
+     'Stands on other foot for one second with eyes closed',
+     'Walks backward toe-to-heel four steps',
+   ]},
+  {code:'4A',domain:'phys',domainLabel:'Physical Development',title:'Visual Motor Skills',pts:1.5,max:7.5,
+   note:'Draws: an X, a square, a rectangle, a triangle, a diamond',
+   items:['X','square','rectangle','triangle','diamond']},
+  {code:'5A',domain:'acad',domainLabel:'Academic / Cognitive',title:'Personal Information',pts:3,max:6,
+   note:'Writes / states: first name, last name',
+   items:['first name','last name']},
+  {code:'6A',domain:'acad',domainLabel:'Academic / Cognitive: Literacy',title:'Recites Alphabet',pts:1,max:6,
+   note:'Prints alphabet — 1 point per 3 letters: a–c, d–f, g–i, j–l, m–o, p–z',
+   items:['a b c','d e f','g h i','j k l','m n o','p q r s t u v w x y z']},
+  {code:'7A',domain:'acad',domainLabel:'Academic / Cognitive: Mathematics',title:'Sorts Objects',pts:3,max:6,
+   items:['Sorts by one attribute (size, colour, or shape)','Sorts by two attributes (size and colour)']},
+  {code:'8A',domain:'acad',domainLabel:'Academic / Cognitive: Mathematics',title:'Counts by Rote',pts:1,max:9,
+   note:'Counts to: 1–10 (1pt each), 15, 20, 25, 30 (1pt each)',
+   items:['1','2','3','4','5','6','7','8','9','10 (stop if fails)','15','20','25','30']},
+  {code:'9A',domain:'acad',domainLabel:'Academic / Cognitive: Mathematics',title:'Matches Quantities with Numerals',pts:2,max:10,
+   items:[
+     'Matches 1 dot + 1 dot = 2 dots',
+     'Matches 2 dots + 2 dots = 4 dots',
+     'Matches 4 dots + 4 dots = 8 (counts groups)',
+     '3.5 stars + 5 stars = 10 stars',
+     '5–6 dots (recognises quantity)',
+   ]},
+  {code:'10A',domain:'acad',domainLabel:'Academic / Cognitive: Mathematics',title:'Determines Total of Two Sets',pts:3,max:9,
+   note:'Counts two groups of objects for a sum up to ten',
+   items:['group 1 + group 2 sum','1 dot + 2 dots = 3 dots','3 dots + 3 dots = 6 dots']},
+  {code:'11A',domain:'acad',domainLabel:'Academic / Cognitive: Literacy',title:'Reads Lowercase / Uppercase Letters',pts:0.5,max:13,
+   note:'Give credit for reading either uppercase OR lowercase — 0.5pt per letter',
+   items:['O','A','X','E','B','S','C','Z','D','L','R','T','M','P','W','K','F','N','H','I','Y','G','U','V','J',
+          'o','s','x','c','z','m','p','w','e','a','i','k','y','r','t','v','n','f','h','u','j','g','l','b','d','q']},
+  {code:'12A',domain:'acad',domainLabel:'Academic / Cognitive: Literacy',title:'Experience with Books and Text',pts:2,max:4.5,
+   items:[
+     'Knows front and back of a book',
+     'Understands text progresses from left to right',
+     'Understands text progresses from top to bottom',
+   ]},
+  {code:'13A',domain:'lang',domainLabel:'Language Development',title:'Verbal Fluency and Articulation',pts:5,max:10,
+   items:['Uses sentences of at least five words','At least 90% of speech is intelligible']},
+];
+
+// SH/SE — same form as 3yr/4yr (CA14303/CA14305)
+const SHSE5={
+  sh:{label:'SELF-HELP SKILLS',sections:[
+    {label:'A. Eating Skills',max:3,items:[
+      {id:'5sh1',q:'Uses a spoon — places in mouth without turning upside down, with little or no spilling',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'5sh2',q:'Uses the side of a fork to cut soft food',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'5sh3',q:'Holds a fork in their fingers, not their fist',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+    ]},
+    {label:'B. Dressing Skills',max:6,items:[
+      {id:'5sh4',q:'Puts on their own shoes',opts:[{v:0,l:'No'},{v:1,l:'Yes — sometimes on wrong feet'},{v:2,l:'Yes — correct foot 90% of time'}]},
+      {id:'5sh5',q:'Dresses themselves unsupervised',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of time — except hard fasteners'},{v:2,l:'Completely — all fasteners'},{v:3,l:'Completely — including tying shoelaces'}]},
+      {id:'5sh6',q:'Puts on their own socks',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+    ]},
+    {label:'C. Toileting Skills',max:8,items:[
+      {id:'5sh7',q:'Gets on the toilet or potty by themselves',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'5sh8',q:'Has bowel movements in the toilet — no more than one accident per week',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'5sh9',q:'Urinates in the toilet — no more than one accident per week',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'5sh10',q:'Wipes after toileting',note:'Score 1 if attempting; 2 if fully independent',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Attempts — most of the time'},{v:2,l:'Independently — most of the time'}]},
+      {id:'5sh11',q:'Takes care of toileting needs',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Flushes most of the time'},{v:2,l:'Flushes and washes/dries hands most of the time'}]},
+      {id:'5sh12',q:'Goes to the bathroom on their own without being asked or reminded',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+    ]},
+  ]},
+  se:{label:'SOCIAL AND EMOTIONAL SKILLS',sections:[
+    {label:'D. Relationships with Adults',max:4,items:[
+      {id:'5se13',q:'Responds with pride and enthusiasm when earning positive feedback',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'5se14',q:'Looks forward to sharing feelings with you when happy',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'5se15',q:'Enjoys sharing information about themselves',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'5se16',q:'Shares their thoughts and ideas',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+    ]},
+    {label:'E. Play and Relationships with Peers',max:4,items:[
+      {id:'5se17',q:'Has several friends but one who is a special or best friend',opts:[{v:0,l:'No'},{v:1,l:'Yes'}]},
+      {id:'5se18',q:'Has a best friend who reciprocates (play dates, party invitations)',opts:[{v:0,l:'No'},{v:1,l:'Yes'}]},
+      {id:'5se19',q:'Plays cooperatively in a large-group game',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'5se20',q:'Gives or incorporates verbal directions into play activities',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+    ]},
+    {label:'F. Motivation and Self-Confidence',max:4,items:[
+      {id:'5se21',q:'Maintains interest when engaged in a small-group activity or project',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'5se22',q:'Shows they like to finish what they start',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'5se23',q:'Approaches new tasks with confidence and a "can-do" attitude',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'5se24',q:'Remains focused even when there are minor distractions',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+    ]},
+    {label:'G. Prosocial Skills and Behaviours',max:4,items:[
+      {id:'5se25',q:'Takes turns without undue objection (when supervised by an adult)',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'5se26',q:'Understands or accepts the need to share and take turns',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'5se27',q:'Asks an adult for permission before using others\' things or restricted activities',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'5se28',q:'Reacts to disappointment or failure in an acceptable manner',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+    ]},
+  ]},
+};
+
+const BANDS5={
+  '5yo_0':{label:'5:0–5:5',min:1825,max:2006,delay:61,gifted:88},
+  '5yo_6':{label:'5:6–5:11',min:2007,max:2189,delay:70,gifted:91},
+};
+const BORDER5=['5yo_0','5yo_6'];
+
+const C5={
+  phys:{sem:5,d:[
+    [68,68],[73,71],[77,74],[80,77],[83,79],[85,81],[88,83],[90,85],[92,87],
+    [94,89],[96,91],[98,93],[99,94],[101,96],[102,97],[104,99],[105,101],[107,102],[108,104],
+  ]},
+  lang:{sem:4,d:[
+    [68,68],[73,71],[77,74],[80,77],[83,79],[85,81],[87,83],[89,85],[91,87],
+    [93,89],[95,91],[97,93],[99,95],[101,97],[103,99],[105,101],[107,103],
+  ]},
+  acad:{sem:4,d:[
+    [68,68],[71,70],[74,72],[76,74],[79,76],[81,78],[83,80],[85,82],[87,84],
+    [89,86],[91,88],[92,89],[94,91],[96,93],[97,94],[99,96],[100,97],[102,99],
+    [103,100],[105,102],[107,104],[108,105],[110,107],[111,108],[113,110],[114,111],
+    [116,113],[118,115],[119,116],[121,118],[122,119],[124,121],[126,123],[127,124],
+    [129,126],[130,127],[132,129],[134,131],[135,132],[137,134],[139,136],[140,137],
+    [142,139],[144,141],[145,142],[147,144],[149,146],[150,147],[152,149],[154,151],
+    [155,152],[157,154],[159,156],[160,157],[162,159],[164,161],[165,162],[167,164],
+    [169,166],[170,167],[172,169],[174,171],[175,172],[177,174],[179,176],[180,177],
+    [182,179],[184,181],[185,182],[187,184],[189,186],[190,187],
+  ]},
+  sh:{sem:5,d:[
+    [68,68],[73,73],[77,77],[80,79],[83,82],[85,82],[88,84],[91,86],[95,89],
+    [98,92],[102,95],[105,98],[109,102],[114,105],[122,110],[130,117],['>130',126],['>130',130],
+  ]},
+  se:{sem:5,d:[
+    [68,68],[75,75],[83,80],[88,84],[92,88],[95,91],[99,93],[101,94],[102,97],
+    [105,100],[108,104],[111,106],[114,110],[117,112],[120,118],[125,123],[130,130],
+  ]},
+};
+
+const BS5={checked:{},shse:{},ageInDays:null,bandKey:null};
+ASMTS5.forEach(a=>{BS5.checked[a.code]=new Set();});
+[...SHSE5.sh.sections,...SHSE5.se.sections].forEach(s=>s.items.forEach(i=>{BS5.shse[i.id]=null;}));
+
+window.BriganceInit5=function({ageInDays}){
+  BS5.ageInDays=ageInDays; BS5.bandKey=null;
+  for(const[k,v] of Object.entries(BANDS5))
+    if(ageInDays>=v.min&&ageInDays<=v.max){BS5.bandKey=k;break;}
+  const notice=document.getElementById('brg-5-band-notice');
+  if(notice){BS5.bandKey?notice.classList.remove('show'):notice.classList.add('show');}
+  _update5SHSE();
+};
+
+window.BriganceGetResults5=function(){
+  const r=_calc5(); const bi=_bi5();
+  return{
+    total:r.tot, physRaw:r.p, langRaw:r.l, acadRaw:r.a, shRaw:r.sh, seRaw:r.se,
+    physComp:_lk5(C5.phys,r.p,bi), langComp:_lk5(C5.lang,r.l,bi),
+    acadComp:_lk5(C5.acad,r.a,bi), shComp:_lk5(C5.sh,r.sh,bi), seComp:_lk5(C5.se,r.se,bi),
+    bandLabel:BS5.bandKey?BANDS5[BS5.bandKey].label:'—',
+    classification:_cls5(r.tot),
+  };
+};
+
+window.showBrgTab5=function(name){
+  document.querySelectorAll('[id^="brg-5-panel-"]').forEach(p=>p.style.display='none');
+  const panel=document.getElementById('brg-5-panel-'+name);
+  if(panel)panel.style.display='block';
+  if(name==='results')_render5Results();
+};
+
+function _bi5(){return BORDER5.indexOf(BS5.bandKey);}
+function _lk5(tbl,raw,bi){const ri=Math.round(raw*2)/2;const ri2=Math.floor(ri);if(bi<0||!tbl.d[ri2])return null;return tbl.d[ri2]?.[bi]??null;}
+function _fmt5(v){if(v===null)return'—';if(typeof v==='string')return v;return v.toString();}
+function _classify5(v){if(v===null||typeof v==='string')return'';if(v>=110)return'Above Average';if(v>=90)return'Average';if(v>=70)return'Low Average';return'Below Average';}
+function _cls5(tot){if(!BS5.bandKey)return'typical';const b=BANDS5[BS5.bandKey];if(tot<b.delay)return'delay';if(tot>b.gifted)return'gifted';return'typical';}
+function _clsLabel5(c){return{delay:'Potential Delay',typical:'Typical Development',gifted:'Potential Giftedness'}[c];}
+
+function _calc5(){
+  let tot=0,p=0,l=0,a=0;
+  ASMTS5.forEach(asmt=>{
+    const pts=BS5.checked[asmt.code].size*asmt.pts; tot+=pts;
+    if(asmt.domain==='phys')p+=pts;
+    if(asmt.domain==='lang')l+=pts;
+    if(asmt.domain==='acad')a+=pts;
+  });
+  const sh=[...SHSE5.sh.sections].flatMap(s=>s.items).reduce((s,i)=>s+(BS5.shse[i.id]??0),0);
+  const se=[...SHSE5.se.sections].flatMap(s=>s.items).reduce((s,i)=>s+(BS5.shse[i.id]??0),0);
+  return{tot:Math.round(tot*10)/10,p:Math.round(p*10)/10,l:Math.round(l*10)/10,a:Math.round(a*10)/10,sh,se};
+}
+
+function _buildAsmts5(){
+  const c=document.getElementById('brg-5-asmts');if(!c)return;
+  c.innerHTML='';
+  ASMTS5.forEach(a=>{
+    const max=a.max;
+    const d=document.createElement('div');d.className='brg-asmt';d.id='brg-5-asmt-'+a.code;
+    d.innerHTML=`<div class="brg-asmt-hdr">
+        <span class="brg-code ${a.domain}">${a.code}</span>
+        <h4>${a.title}</h4>
+        <span class="brg-dtag ${a.domain}">${a.domainLabel}</span>
+        <span class="brg-schip" id="brg-5-sc-${a.code}">0/${max%1?max.toFixed(1):max}</span>
+      </div>
+      ${a.note?`<div class="brg-item-note">ℹ ${a.note}</div>`:''}
+      <div class="brg-items">${a.items.map((it,i)=>`
+        <div class="brg-item" onclick="_bToggle5('${a.code}',${i},this)">
+          <div class="brg-chk"><svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+            <path d="M1.5 5L4.5 8L10.5 1.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <span class="brg-itxt">${it}</span>
+          <span class="brg-ipts">${a.pts}pt</span>
+        </div>`).join('')}
+      </div>
+      <div class="brg-foot"><span>${a.pts} point${a.pts!==1?'s':''} per item · max ${max%1?max.toFixed(1):max}</span></div>`;
+    c.appendChild(d);
+  });
+}
+
+window._bToggle5=function(code,idx,row){
+  const s=BS5.checked[code];
+  if(s.has(idx)){s.delete(idx);row.classList.remove('on');}else{s.add(idx);row.classList.add('on');}
+  _recalc5();
+};
+
+function _recalc5(){
+  const r=_calc5();
+  const el=id=>document.getElementById(id);
+  const fmt=v=>v%1?v.toFixed(1):v;
+  if(el('brg-5-total'))el('brg-5-total').textContent=fmt(r.tot);
+  if(el('brg-5-p'))el('brg-5-p').textContent=fmt(r.p);
+  if(el('brg-5-l'))el('brg-5-l').textContent=fmt(r.l);
+  if(el('brg-5-a'))el('brg-5-a').textContent=fmt(r.a);
+  ASMTS5.forEach(a=>{
+    const pts=BS5.checked[a.code].size*a.pts;
+    const ch=el('brg-5-sc-'+a.code);
+    const max=a.max;
+    if(ch)ch.textContent=(pts%1?pts.toFixed(1):pts)+'/'+(max%1?max.toFixed(1):max);
+  });
+}
+
+function _buildSHSE5(){
+  const c=document.getElementById('brg-5-shse-items');if(!c)return;
+  c.innerHTML='';
+  ['sh','se'].forEach(scale=>{
+    const sd=SHSE5[scale];
+    const lbl=document.createElement('div');
+    lbl.style.cssText='font-size:0.72rem;text-transform:uppercase;letter-spacing:.09em;font-weight:700;color:'+(scale==='sh'?'#2e7d32':'#4527a0')+';padding:10px 4px 4px';
+    lbl.textContent=sd.label; c.appendChild(lbl);
+    sd.sections.forEach((sec,si)=>{
+      const blk=document.createElement('div');blk.className='brg-asmt';
+      const secId='brg-5-sec-'+scale+si;
+      const letter=sec.label.match(/[A-G]/)?.[0]||'';
+      let h=`<div class="brg-asmt-hdr">
+        <span class="brg-code ${scale}">${letter}</span>
+        <h4>${sec.label.replace(/^[A-G]\.\s*/,'')}</h4>
+        <span class="brg-dtag ${scale}">${scale==='sh'?'Self-help':'Social-Emotional'}</span>
+        <span class="brg-schip" id="${secId}">0/${sec.max}</span>
+      </div>`;
+      sec.items.forEach(it=>{
+        h+=`<div class="brg-sh-item">
+          <div class="brg-sh-q">${it.q}</div>
+          ${it.note?`<div class="brg-sh-note">ℹ ${it.note}</div>`:''}
+          <div class="brg-opts" id="brg-5-opts-${it.id}">
+            ${it.opts.map(o=>`<button class="brg-opt" onclick="_bOpt5('${it.id}',${o.v},this,'${scale}')">${o.l}</button>`).join('')}
+          </div>
+        </div>`;
+      });
+      h+=`<div class="brg-foot"><span>Section max ${sec.max}</span></div>`;
+      blk.innerHTML=h; c.appendChild(blk);
+    });
+  });
+}
+
+window._bOpt5=function(id,val,btn,scale){
+  BS5.shse[id]=val;
+  document.getElementById('brg-5-opts-'+id).querySelectorAll('.brg-opt').forEach(b=>b.classList.remove('sel-z','sel-p'));
+  btn.classList.add(val===0?'sel-z':'sel-p');
+  _update5SHSE();
+};
+
+function _update5SHSE(){
+  const r=_calc5(); const bi=_bi5();
+  const el=id=>document.getElementById(id);
+  if(el('brg-5-sh-raw'))el('brg-5-sh-raw').textContent=r.sh;
+  if(el('brg-5-se-raw'))el('brg-5-se-raw').textContent=r.se;
+  if(bi>=0){
+    const shC=_lk5(C5.sh,r.sh,bi),seC=_lk5(C5.se,r.se,bi);
+    if(el('brg-5-sh-comp'))el('brg-5-sh-comp').innerHTML=`<span style="color:var(--navy)">${_fmt5(shC)}</span> <span style="color:#888;font-size:0.75rem">${_classify5(typeof shC==='number'?shC:null)}</span>`;
+    if(el('brg-5-se-comp'))el('brg-5-se-comp').innerHTML=`<span style="color:var(--navy)">${_fmt5(seC)}</span> <span style="color:#888;font-size:0.75rem">${_classify5(typeof seC==='number'?seC:null)}</span>`;
+    if(el('brg-5-sh-sem')&&typeof shC==='number')el('brg-5-sh-sem').textContent=`SEM ±${C5.sh.sem} → ${shC-C5.sh.sem}–${shC+C5.sh.sem}`;
+    if(el('brg-5-se-sem')&&typeof seC==='number')el('brg-5-se-sem').textContent=`SEM ±${C5.se.sem} → ${seC-C5.se.sem}–${seC+C5.se.sem}`;
+  }
+  ['sh','se'].forEach(scale=>{
+    SHSE5[scale].sections.forEach((sec,si)=>{
+      const t=sec.items.reduce((s,i)=>s+(BS5.shse[i.id]??0),0);
+      const el2=document.getElementById('brg-5-sec-'+scale+si);
+      if(el2)el2.textContent=t+'/'+sec.max;
+    });
+  });
+}
+
+function _render5Results(){
+  const r=_calc5(); const bi=_bi5();
+  const band=BS5.bandKey?BANDS5[BS5.bandKey]:null;
+  const cls=_cls5(r.tot);
+  const pC=_lk5(C5.phys,r.p,bi),lC=_lk5(C5.lang,r.l,bi),
+        aC=_lk5(C5.acad,r.a,bi),shC=_lk5(C5.sh,r.sh,bi),seC=_lk5(C5.se,r.se,bi);
+  document.getElementById('brg-5-results-body').innerHTML=`
+    <h3 style="font-size:0.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--teal);margin-bottom:10px">BRIGANCE® Screens III — Five-Year-Old / Foundation</h3>
+    <div style="margin-bottom:12px">
+      <span class="brg-result-badge ${cls}">${_clsLabel5(cls)}</span>
+      <strong style="font-size:1.3rem;margin-left:8px">${r.tot%1?r.tot.toFixed(1):r.tot}</strong>
+      <span style="color:#888"> / 100</span>
+      ${band?`<span style="font-size:0.72rem;color:#888;margin-left:6px">Band ${band.label}: delay &lt;${band.delay} · gifted &gt;${band.gifted}</span>`:''}
+    </div>
+    <div class="brg-ctrack">
+      ${band?_cutoffBar5(r.tot,band):'<span style="padding:10px;font-size:0.78rem;color:#888">Enter child\'s DOB to display cutoffs</span>'}
+    </div>
+    <h4 style="font-size:0.76rem;text-transform:uppercase;letter-spacing:.08em;color:var(--teal);margin:14px 0 8px">Results by Domain</h4>
+    <div class="brg-legend">
+      <div class="brg-legend-item"><div class="brg-legend-dot below"></div>Below Average (&lt;85)</div>
+      <div class="brg-legend-item"><div class="brg-legend-dot typical"></div>Average (85–115)</div>
+      <div class="brg-legend-item"><div class="brg-legend-dot above"></div>Above Average (&gt;115)</div>
+    </div>
+    ${_dbar5('Physical Development','phys',r.p,pC,C5.phys.sem,'raw '+r.p+'/12.5')}
+    ${_dbar5('Language Development','lang',r.l,lC,C5.lang.sem,'raw '+r.l+'/16')}
+    ${_dbar5('Academic / Cognitive','acad',r.a,aC,C5.acad.sem,'raw '+r.a+'/71.5')}
+    ${_dbar5('Self-help Skills','sh',r.sh,shC,C5.sh.sem,'raw '+r.sh+'/17')}
+    ${_dbar5('Social-Emotional Skills','se',r.se,seC,C5.se.sem,'raw '+r.se+'/16')}
+    <p style="font-size:0.69rem;color:#aaa;margin-top:10px">Composite scores: mean=100, SD=15 · Shaded band = ±1 SEM</p>`;
+}
+
+function _cutoffBar5(score,band){
+  const p=v=>Math.min(97,Math.max(3,(v/100)*100));
+  const sp=p(score),dp=p(band.delay),gp=p(band.gifted);
+  return`<div class="brg-cz d" style="left:0;width:${dp}%"></div>
+    <div class="brg-cz n" style="left:${dp}%;width:${gp-dp}%"></div>
+    <div class="brg-cz g" style="left:${gp}%;right:0"></div>
+    <div class="brg-cmark" style="left:${dp}%"><span class="brg-clbl">Delay &lt;${band.delay}</span></div>
+    <div class="brg-cmark" style="left:${gp}%"><span class="brg-clbl">Gifted &gt;${band.gifted}</span></div>
+    <div class="brg-needle" style="left:${sp}%" data-v="${score}"></div>`;
+}
+function _barCls5(n){if(n===null||typeof n==='string')return'no-data';if(n>=115)return'above';if(n>=85)return'typical';return'below';}
+function _dbar5(label,cls,raw,comp,sem,rawStr){
+  const n=typeof comp==='number'?comp:null; const bc=_barCls5(n);
+  const pct=n?Math.min(100,(n/145)*100):0;
+  const pLo=n?Math.min(100,((n-sem)/145)*100):0;
+  const pHi=n?Math.min(100,((n+sem)/145)*100):0;
+  return`<div class="brg-dbar">
+    <div class="brg-dbar-lbl">
+      <span><span class="dl">${label}</span><span class="dc">${_classify5(n)}</span></span>
+      <span><strong>${_fmt5(comp)}</strong>${n?` <span style="color:#aaa;font-size:0.7rem">±${sem}</span>`:''} <span style="color:#aaa;font-size:0.7rem">(${rawStr})</span></span>
+    </div>
+    <div class="brg-dbar-track">
+      ${n?`<div class="brg-sem-band ${bc}" style="left:${pLo}%;width:${pHi-pLo}%"></div>
+           <div class="brg-fill ${bc}" style="width:${pct}%"></div>
+           <div class="brg-avg"></div>`:''}
+    </div>
+  </div>`;
+}
+
+document.addEventListener('DOMContentLoaded',()=>{_buildAsmts5();_buildSHSE5();});
+})();
+</script>
