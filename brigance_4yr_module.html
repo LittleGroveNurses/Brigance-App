@@ -1,0 +1,451 @@
+<!--
+  ════════════════════════════════════════════════════════════════════
+  BRIGANCE® Screens III — Four-Year-Old Data Entry Module
+  Little Grove · Child, Adolescent & Family Health · App 2
+
+  INTEGRATION:
+  1. The <style> block is in brigance_2yr_module.html — do NOT duplicate it.
+  2. Paste the HTML panels wherever the Brigance section should appear.
+  3. Paste the <script> block before </body>.
+  4. Call  BriganceInit4({ ageInDays: <number> })  once child DOB is known.
+  5. To retrieve results:
+       const r = BriganceGetResults4();
+       // returns { total, physRaw, langRaw, acadRaw, shRaw, seRaw,
+       //           physComp, langComp, acadComp, shComp, seComp,
+       //           bandLabel, classification }
+  6. Show panels via showBrgTab4(name) — 'entry' | 'shse' | 'results'
+  ════════════════════════════════════════════════════════════════════
+-->
+
+<div id="brg-4-panel-entry" class="brg-panel" style="display:none">
+
+  <div class="brg-band-notice" id="brg-4-band-notice">
+    ⚠ Age not yet calculated — enter child's DOB and screening date to determine the age band and enable composite scoring.
+  </div>
+
+  <div class="brg-totals">
+    <h3>Running Score — Four-Year-Old Data Sheet</h3>
+    <div class="brg-big"><span id="brg-4-total">0</span><small> / 100</small></div>
+    <div class="brg-chips">
+      <div class="brg-chip phys"><div class="n" id="brg-4-p">0</div><div class="lbl">Physical</div><div class="mx">/ 15</div></div>
+      <div class="brg-chip lang"><div class="n" id="brg-4-l">0</div><div class="lbl">Language</div><div class="mx">/ 48</div></div>
+      <div class="brg-chip acad"><div class="n" id="brg-4-a">0</div><div class="lbl">Academic / Cog</div><div class="mx">/ 37</div></div>
+    </div>
+  </div>
+
+  <div id="brg-4-asmts"></div>
+</div>
+
+<div id="brg-4-panel-shse" class="brg-panel" style="display:none">
+  <div class="brg-shse-totals">
+    <h3>Running Score — Self-help &amp; Social-Emotional Scales</h3>
+    <div class="brg-shse-chips">
+      <div class="brg-scard sh">
+        <h4>Self-help Skills</h4>
+        <div class="brg-sraw"><span id="brg-4-sh-raw">0</span> / 17</div>
+        <div class="brg-scomp" id="brg-4-sh-comp">—</div>
+        <div class="brg-ssem" id="brg-4-sh-sem"></div>
+      </div>
+      <div class="brg-scard se">
+        <h4>Social-Emotional</h4>
+        <div class="brg-sraw"><span id="brg-4-se-raw">0</span> / 16</div>
+        <div class="brg-scomp" id="brg-4-se-comp">—</div>
+        <div class="brg-ssem" id="brg-4-se-sem"></div>
+      </div>
+    </div>
+  </div>
+  <div id="brg-4-shse-items"></div>
+</div>
+
+<div id="brg-4-panel-results" class="brg-panel" style="display:none">
+  <div id="brg-4-results-body">
+    <p style="color:#888;font-size:0.85rem;text-align:center;padding:20px">Complete the Data Sheet and Self-help &amp; SE sections, then tap Brigance Results.</p>
+  </div>
+</div>
+
+<script id="brigance-4yr-module">
+(function(){
+// ══════════════════════════════════════════════════════════
+// FOUR-YEAR-OLD ASSESSMENT DATA
+// Source: BRIGANCE® Screens III © 2014 Curriculum Associates
+// Hawker Brownlow Education CA14300
+// ══════════════════════════════════════════════════════════
+const ASMTS4=[
+  {code:'1B',domain:'acad',domainLabel:'Academic / Cognitive',title:'Knows Personal Information',pts:2.5,max:10,
+   items:['First name','Last name','Age','Street address']},
+  {code:'2B',domain:'lang',domainLabel:'Language Development',title:'Names Colours',pts:1,max:10,
+   items:['Blue','Green','Yellow','Red','Pink','Orange','Purple','Black','White','Brown']},
+  {code:'3B',domain:'lang',domainLabel:'Language Development',title:'Identifies Pictures by Naming',pts:1,max:8,
+   items:['Scissors','Duck','Snake','Trailer','Ladder','Leaf','Owl','Nail']},
+  {code:'4B',domain:'acad',domainLabel:'Academic / Cognitive',title:'Visual Discrimination — Forms and Uppercase Letters',pts:1,max:10,
+   items:['○ circle','□ square','○ circle (2)','⬡ hexagon','◗ parenthesis-shape','O','I','P','V','X']},
+  {code:'5B',domain:'phys',domainLabel:'Physical Development',title:'Visual Motor Skills',pts:2,max:10,
+   items:['Draws a circle','Draws a plus sign','Draws an X','Draws a square','Draws a rectangle']},
+  {code:'6B',domain:'phys',domainLabel:'Physical Development',title:'Gross Motor Skills',pts:1,max:5,
+   items:['Walks forward heel-to-toe five steps','Hops five hops on preferred foot','Hops five hops on other foot','Stands on one foot for ten seconds','Stands on other foot for ten seconds']},
+  {code:'7B',domain:'lang',domainLabel:'Language Development',title:'Names Parts of the Body',pts:2,max:12,
+   items:['Stomach','Neck','Back','Knees','Thumbs','Fingernails']},
+  {code:'8B',domain:'lang',domainLabel:'Language Development',title:'Follows Verbal Directions',pts:4,max:8,
+   items:['Follows two-step directions','Follows three-step directions']},
+  {code:'9B',domain:'acad',domainLabel:'Academic / Cognitive: Mathematics',title:'Counts by Rote',pts:0.5,max:5,
+   items:['1','2','3','4','5','6','7','8','9','10']},
+  {code:'10B',domain:'acad',domainLabel:'Academic / Cognitive',title:'Recognises Quantities',pts:4,max:12,
+   items:['Three','Five','Eight']},
+  {code:'11B',domain:'lang',domainLabel:'Language Development',title:'Verbal Fluency and Articulation',pts:5,max:10,
+   items:['Uses sentences of at least three words','At least 90% of speech is intelligible']},
+];
+
+// SH/SE — same form as 3yr (CA14296/CA14303)
+const SHSE4={
+  sh:{label:'SELF-HELP SKILLS',sections:[
+    {label:'A. Eating Skills',max:3,items:[
+      {id:'4sh1',q:'Uses a spoon — places in mouth without turning upside down, with little or no spilling',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'4sh2',q:'Uses the side of a fork to cut soft food',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'4sh3',q:'Holds a fork in their fingers, not their fist',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+    ]},
+    {label:'B. Dressing Skills',max:6,items:[
+      {id:'4sh4',q:'Puts on their own shoes',opts:[{v:0,l:'No'},{v:1,l:'Yes — sometimes on wrong feet'},{v:2,l:'Yes — correct foot 90% of time'}]},
+      {id:'4sh5',q:'Dresses themselves unsupervised',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of time — except hard fasteners'},{v:2,l:'Completely — all fasteners'},{v:3,l:'Completely — including tying shoelaces'}]},
+      {id:'4sh6',q:'Puts on their own socks',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+    ]},
+    {label:'C. Toileting Skills',max:8,items:[
+      {id:'4sh7',q:'Gets on the toilet or potty by themselves (even if they need help with clothing)',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'4sh8',q:'Has bowel movements in the toilet — no more than one accident per week',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'4sh9',q:'Urinates in the toilet — no more than one accident per week',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'4sh10',q:'Wipes after toileting',note:'Score 1 if attempting; 2 if fully independent',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Attempts — most of the time'},{v:2,l:'Independently — most of the time'}]},
+      {id:'4sh11',q:'Takes care of toileting needs',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Flushes most of the time'},{v:2,l:'Flushes and washes/dries hands most of the time'}]},
+      {id:'4sh12',q:'Goes to the bathroom on their own without being asked or reminded',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+    ]},
+  ]},
+  se:{label:'SOCIAL AND EMOTIONAL SKILLS',sections:[
+    {label:'D. Relationships with Adults',max:4,items:[
+      {id:'4se13',q:'Responds with pride and enthusiasm when earning positive feedback',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'4se14',q:'Looks forward to sharing feelings with you when happy',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'4se15',q:'Enjoys sharing information about themselves (likes, family, weekend activities)',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'4se16',q:'Shares their thoughts and ideas',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+    ]},
+    {label:'E. Play and Relationships with Peers',max:4,items:[
+      {id:'4se17',q:'Has several friends but one who is a special or best friend',opts:[{v:0,l:'No'},{v:1,l:'Yes'}]},
+      {id:'4se18',q:'Has a best friend who reciprocates (play dates, party invitations)',opts:[{v:0,l:'No'},{v:1,l:'Yes'}]},
+      {id:'4se19',q:'Plays cooperatively in a large-group game (duck-duck-goose, tag, kickball)',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'4se20',q:'Gives or incorporates verbal directions into play activities',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+    ]},
+    {label:'F. Motivation and Self-Confidence',max:4,items:[
+      {id:'4se21',q:'Maintains interest when engaged in a small-group activity or project',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'4se22',q:'Shows they like to finish what they start',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'4se23',q:'Approaches new tasks with confidence and a "can-do" attitude',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'4se24',q:'Remains focused even when there are minor distractions',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+    ]},
+    {label:'G. Prosocial Skills and Behaviours',max:4,items:[
+      {id:'4se25',q:'Takes turns without undue objection (when supervised by an adult)',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'4se26',q:'Understands or accepts the need to share and take turns',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'4se27',q:'Asks an adult for permission before using others\' things or restricted activities',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'4se28',q:'Reacts to disappointment or failure in an acceptable manner',opts:[{v:0,l:'Rarely / Sometimes'},{v:1,l:'Most of the time'}]},
+    ]},
+  ]},
+};
+
+// ── Cutoffs (Table 3-2 — Hawker Brownlow CA14300) ──
+const BANDS4={
+  '4yo_0':{label:'4:0–4:3',min:1460,max:1581,delay:42,gifted:83},
+  '4yo_4':{label:'4:4–4:7',min:1582,max:1703,delay:69,gifted:87},
+  '4yo_8':{label:'4:8–4:11',min:1704,max:1824,delay:71,gifted:92},
+};
+const BORDER4=['4yo_0','4yo_4','4yo_8'];
+
+// ── Domain composite tables (Appendix E & F — Hawker Brownlow CA14300) ──
+// phys: Table from Technical Manual — Physical Development 5B, 6B — SEM=6
+// lang: Language Development — SEM from Appendix F
+// acad: Academic/Cognitive — SEM from Appendix F
+// sh/se: Self-help / Social-Emotional — SEM from Appendix F
+const C4={
+  phys:{sem:6,d:[
+    [78,68,68],[81,73,73],[84,74,75],[87,77,78],[88,79,79],[91,82,82],
+    [94,85,85],[99,91,91],[103,95,95],[106,99,99],[109,102,101],[112,105,105],
+    [115,108,108],[118,112,111],[123,118,117],[130,127,125],
+  ]},
+  lang:{sem:4,d:[
+    [68,68,68],[72,71,70],[75,73,72],[78,75,74],[80,77,76],[82,79,78],
+    [83,80,79],[85,81,80],[86,83,82],[88,84,83],[89,85,84],[90,87,86],
+    [91,88,87],[92,89,88],[93,90,89],[95,91,90],[96,93,92],[97,94,93],
+    [99,95,94],[100,97,96],[101,98,97],[103,99,98],[104,100,99],[106,102,101],
+    [107,103,102],[109,105,104],[110,106,105],[112,108,107],[113,109,108],
+    [115,111,110],[117,112,111],[119,114,113],[121,116,115],[123,118,117],
+    [125,120,119],[127,122,121],[129,124,123],[131,127,126],[133,129,128],
+    [135,131,130],[137,133,132],[139,135,134],[141,137,136],[143,139,138],
+    [145,141,140],[147,143,142],[149,145,144],[151,147,146],
+  ]},
+  acad:{sem:5,d:[
+    [68,68,68],[73,70,70],[77,73,73],[80,76,76],[83,79,79],[86,81,81],
+    [88,83,83],[90,85,85],[92,87,87],[94,89,89],[96,91,91],[98,93,93],
+    [99,94,94],[101,96,96],[102,97,97],[104,99,99],[106,101,101],[107,102,102],
+    [109,104,103],[110,105,104],[112,107,106],[113,108,107],[115,110,109],
+    [116,111,110],[118,113,112],[119,114,113],[121,116,115],[123,118,117],
+    [124,119,118],[126,121,120],[128,123,122],[130,125,124],[132,127,126],
+    [134,129,128],[136,131,130],[138,133,132],[140,135,134],[142,137,136],
+  ]},
+  sh:{sem:5,d:[
+    [68,68,68],[73,73,70],[77,77,72],[80,79,74],[83,82,76],[85,82,77],
+    [88,84,79],[91,86,81],[95,89,85],[98,92,88],[102,95,91],[105,98,94],
+    [109,102,98],[114,105,102],[122,110,106],[130,117,114],['>130',126,123],['>130',130,126],
+  ]},
+  se:{sem:5,d:[
+    [68,68,68],[75,75,75],[83,80,80],[88,84,84],[92,88,88],[95,91,91],
+    [99,93,93],[101,94,93],[102,97,97],[105,100,100],[108,104,104],[111,106,106],
+    [114,110,110],[117,112,112],[120,118,117],[125,123,122],[130,130,129],
+  ]},
+};
+
+// ══════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════
+const BS4={checked:{},shse:{},ageInDays:null,bandKey:null};
+ASMTS4.forEach(a=>{BS4.checked[a.code]=new Set();});
+[...SHSE4.sh.sections,...SHSE4.se.sections].forEach(s=>s.items.forEach(i=>{BS4.shse[i.id]=null;}));
+
+// ══════════════════════════════════════════════════════════
+// PUBLIC API
+// ══════════════════════════════════════════════════════════
+window.BriganceInit4=function({ageInDays}){
+  BS4.ageInDays=ageInDays; BS4.bandKey=null;
+  for(const[k,v] of Object.entries(BANDS4))
+    if(ageInDays>=v.min&&ageInDays<=v.max){BS4.bandKey=k;break;}
+  const notice=document.getElementById('brg-4-band-notice');
+  if(notice){BS4.bandKey?notice.classList.remove('show'):notice.classList.add('show');}
+  _update4SHSE();
+};
+
+window.BriganceGetResults4=function(){
+  const r=_calc4();
+  const bi=_bi4();
+  return{
+    total:r.tot, physRaw:r.p, langRaw:r.l, acadRaw:r.a, shRaw:r.sh, seRaw:r.se,
+    physComp:_lk4(C4.phys,r.p,bi), langComp:_lk4(C4.lang,r.l,bi),
+    acadComp:_lk4(C4.acad,r.a,bi), shComp:_lk4(C4.sh,r.sh,bi), seComp:_lk4(C4.se,r.se,bi),
+    bandLabel:BS4.bandKey?BANDS4[BS4.bandKey].label:'—',
+    classification:_cls4(r.tot),
+  };
+};
+
+window.showBrgTab4=function(name){
+  document.querySelectorAll('[id^="brg-4-panel-"]').forEach(p=>p.style.display='none');
+  const panel=document.getElementById('brg-4-panel-'+name);
+  if(panel)panel.style.display='block';
+  if(name==='results')_render4Results();
+};
+
+// ══════════════════════════════════════════════════════════
+// INTERNAL
+// ══════════════════════════════════════════════════════════
+function _bi4(){return BORDER4.indexOf(BS4.bandKey);}
+function _lk4(tbl,raw,bi){if(bi<0||!tbl.d[raw])return null;return tbl.d[raw]?.[bi]??null;}
+function _fmt4(v){if(v===null)return'—';if(typeof v==='string')return v;return v.toString();}
+function _classify4(v){
+  if(v===null||typeof v==='string')return'';
+  if(v>=110)return'Above Average';if(v>=90)return'Average';
+  if(v>=70)return'Low Average';return'Below Average';
+}
+function _cls4(tot){
+  if(!BS4.bandKey)return'typical';
+  const b=BANDS4[BS4.bandKey];
+  if(tot<b.delay)return'delay';if(tot>b.gifted)return'gifted';return'typical';
+}
+function _clsLabel4(c){return{delay:'Potential Delay',typical:'Typical Development',gifted:'Potential Giftedness'}[c];}
+
+function _calc4(){
+  let tot=0,p=0,l=0,a=0;
+  ASMTS4.forEach(asmt=>{
+    const pts=BS4.checked[asmt.code].size*asmt.pts; tot+=pts;
+    if(asmt.domain==='phys')p+=pts;
+    if(asmt.domain==='lang')l+=pts;
+    if(asmt.domain==='acad')a+=pts;
+  });
+  const sh=[...SHSE4.sh.sections].flatMap(s=>s.items).reduce((s,i)=>s+(BS4.shse[i.id]??0),0);
+  const se=[...SHSE4.se.sections].flatMap(s=>s.items).reduce((s,i)=>s+(BS4.shse[i.id]??0),0);
+  return{tot:Math.round(tot*10)/10,p:Math.round(p*10)/10,l,a:Math.round(a*10)/10,sh,se};
+}
+
+function _buildAsmts4(){
+  const c=document.getElementById('brg-4-asmts');if(!c)return;
+  c.innerHTML='';
+  ASMTS4.forEach(a=>{
+    const d=document.createElement('div');d.className='brg-asmt';d.id='brg-4-asmt-'+a.code;
+    d.innerHTML=`<div class="brg-asmt-hdr">
+        <span class="brg-code ${a.domain}">${a.code}</span>
+        <h4>${a.title}</h4>
+        <span class="brg-dtag ${a.domain}">${a.domainLabel}</span>
+        <span class="brg-schip" id="brg-4-sc-${a.code}">0/${a.max}</span>
+      </div>
+      <div class="brg-items">${a.items.map((it,i)=>`
+        <div class="brg-item" data-code="${a.code}" data-idx="${i}" onclick="_bToggle4('${a.code}',${i},this)">
+          <div class="brg-chk"><svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+            <path d="M1.5 5L4.5 8L10.5 1.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <span class="brg-itxt">${it}</span>
+          <span class="brg-ipts">${a.pts}pt</span>
+        </div>`).join('')}
+      </div>
+      <div class="brg-foot"><span>${a.pts} point${a.pts>1?'s':''} per item · max ${a.max}</span></div>`;
+    c.appendChild(d);
+  });
+}
+
+window._bToggle4=function(code,idx,row){
+  const s=BS4.checked[code];
+  if(s.has(idx)){s.delete(idx);row.classList.remove('on');}else{s.add(idx);row.classList.add('on');}
+  _recalc4();
+};
+
+function _recalc4(){
+  let tot=0,p=0,l=0,a=0;
+  ASMTS4.forEach(asmt=>{
+    const pts=BS4.checked[asmt.code].size*asmt.pts; tot+=pts;
+    if(asmt.domain==='phys')p+=pts;if(asmt.domain==='lang')l+=pts;if(asmt.domain==='acad')a+=pts;
+    const ch=document.getElementById('brg-4-sc-'+asmt.code);
+    if(ch)ch.textContent=(pts%1?pts.toFixed(1):pts)+'/'+asmt.max;
+  });
+  const el=id=>document.getElementById(id);
+  const fmt=v=>v%1?v.toFixed(1):v;
+  if(el('brg-4-total'))el('brg-4-total').textContent=fmt(tot);
+  if(el('brg-4-p'))el('brg-4-p').textContent=fmt(p);
+  if(el('brg-4-l'))el('brg-4-l').textContent=l;
+  if(el('brg-4-a'))el('brg-4-a').textContent=fmt(a);
+}
+
+function _buildSHSE4(){
+  const c=document.getElementById('brg-4-shse-items');if(!c)return;
+  c.innerHTML='';
+  ['sh','se'].forEach(scale=>{
+    const sd=SHSE4[scale];
+    const lbl=document.createElement('div');
+    lbl.style.cssText='font-size:0.72rem;text-transform:uppercase;letter-spacing:.09em;font-weight:700;'
+      +'color:'+(scale==='sh'?'#2e7d32':'#4527a0')+';padding:10px 4px 4px';
+    lbl.textContent=sd.label; c.appendChild(lbl);
+    sd.sections.forEach((sec,si)=>{
+      const blk=document.createElement('div'); blk.className='brg-asmt';
+      const secId='brg-4-sec-'+scale+si;
+      const letter=sec.label.match(/[A-G]/)?.[0]||'';
+      let h=`<div class="brg-asmt-hdr">
+        <span class="brg-code ${scale}">${letter}</span>
+        <h4>${sec.label.replace(/^[A-G]\.\s*/,'')}</h4>
+        <span class="brg-dtag ${scale}">${scale==='sh'?'Self-help':'Social-Emotional'}</span>
+        <span class="brg-schip" id="${secId}">0/${sec.max}</span>
+      </div>`;
+      sec.items.forEach(it=>{
+        h+=`<div class="brg-sh-item">
+          <div class="brg-sh-q">${it.q}</div>
+          ${it.note?`<div class="brg-sh-note">ℹ ${it.note}</div>`:''}
+          <div class="brg-opts" id="brg-4-opts-${it.id}">
+            ${it.opts.map(o=>`<button class="brg-opt" onclick="_bOpt4('${it.id}',${o.v},this,'${scale}')">${o.l}</button>`).join('')}
+          </div>
+        </div>`;
+      });
+      h+=`<div class="brg-foot"><span>Section max ${sec.max}</span></div>`;
+      blk.innerHTML=h; c.appendChild(blk);
+    });
+  });
+}
+
+window._bOpt4=function(id,val,btn,scale){
+  BS4.shse[id]=val;
+  document.getElementById('brg-4-opts-'+id).querySelectorAll('.brg-opt')
+    .forEach(b=>b.classList.remove('sel-z','sel-p'));
+  btn.classList.add(val===0?'sel-z':'sel-p');
+  _update4SHSE();
+};
+
+function _update4SHSE(){
+  const r=_calc4(); const bi=_bi4();
+  const el=id=>document.getElementById(id);
+  if(el('brg-4-sh-raw'))el('brg-4-sh-raw').textContent=r.sh;
+  if(el('brg-4-se-raw'))el('brg-4-se-raw').textContent=r.se;
+  if(bi>=0){
+    const shC=_lk4(C4.sh,r.sh,bi),seC=_lk4(C4.se,r.se,bi);
+    if(el('brg-4-sh-comp'))el('brg-4-sh-comp').innerHTML=`<span style="color:var(--navy)">${_fmt4(shC)}</span> <span style="color:#888;font-size:0.75rem">${_classify4(typeof shC==='number'?shC:null)}</span>`;
+    if(el('brg-4-se-comp'))el('brg-4-se-comp').innerHTML=`<span style="color:var(--navy)">${_fmt4(seC)}</span> <span style="color:#888;font-size:0.75rem">${_classify4(typeof seC==='number'?seC:null)}</span>`;
+    if(el('brg-4-sh-sem')&&typeof shC==='number')el('brg-4-sh-sem').textContent=`SEM ±${C4.sh.sem} → ${shC-C4.sh.sem}–${shC+C4.sh.sem}`;
+    if(el('brg-4-se-sem')&&typeof seC==='number')el('brg-4-se-sem').textContent=`SEM ±${C4.se.sem} → ${seC-C4.se.sem}–${seC+C4.se.sem}`;
+  }
+  ['sh','se'].forEach(scale=>{
+    SHSE4[scale].sections.forEach((sec,si)=>{
+      const secTotal=sec.items.reduce((s,i)=>s+(BS4.shse[i.id]??0),0);
+      const el2=document.getElementById('brg-4-sec-'+scale+si);
+      if(el2)el2.textContent=secTotal+'/'+sec.max;
+    });
+  });
+}
+
+function _render4Results(){
+  const r=_calc4(); const bi=_bi4();
+  const band=BS4.bandKey?BANDS4[BS4.bandKey]:null;
+  const cls=_cls4(r.tot);
+  const pC=_lk4(C4.phys,r.p,bi),lC=_lk4(C4.lang,r.l,bi),
+        aC=_lk4(C4.acad,r.a,bi),shC=_lk4(C4.sh,r.sh,bi),seC=_lk4(C4.se,r.se,bi);
+
+  document.getElementById('brg-4-results-body').innerHTML=`
+    <h3 style="font-size:0.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--teal);margin-bottom:10px">BRIGANCE® Screens III — Four-Year-Old</h3>
+    <div style="margin-bottom:12px">
+      <span class="brg-result-badge ${cls}">${_clsLabel4(cls)}</span>
+      <strong style="font-size:1.3rem;margin-left:8px">${r.tot}</strong>
+      <span style="color:#888"> / 100</span>
+      ${band?`<span style="font-size:0.72rem;color:#888;margin-left:6px">Band ${band.label}: delay &lt;${band.delay} · gifted &gt;${band.gifted}</span>`:''}
+    </div>
+    <div class="brg-ctrack">
+      ${band?_cutoffBar4(r.tot,band):'<span style="padding:10px;font-size:0.78rem;color:#888">Enter child\'s DOB to display cutoffs</span>'}
+    </div>
+    <h4 style="font-size:0.76rem;text-transform:uppercase;letter-spacing:.08em;color:var(--teal);margin:14px 0 8px">Results by Domain</h4>
+    <div class="brg-legend">
+      <div class="brg-legend-item"><div class="brg-legend-dot below"></div>Below Average (&lt;85)</div>
+      <div class="brg-legend-item"><div class="brg-legend-dot typical"></div>Average (85–115)</div>
+      <div class="brg-legend-item"><div class="brg-legend-dot above"></div>Above Average (&gt;115)</div>
+    </div>
+    ${_dbar4('Physical Development','phys',r.p,pC,C4.phys.sem,'raw '+r.p+'/15')}
+    ${_dbar4('Language Development','lang',r.l,lC,C4.lang.sem,'raw '+r.l+'/48')}
+    ${_dbar4('Academic / Cognitive','acad',r.a,aC,C4.acad.sem,'raw '+r.a+'/37')}
+    ${_dbar4('Self-help Skills','sh',r.sh,shC,C4.sh.sem,'raw '+r.sh+'/17')}
+    ${_dbar4('Social-Emotional Skills','se',r.se,seC,C4.se.sem,'raw '+r.se+'/16')}
+    <p style="font-size:0.69rem;color:#aaa;margin-top:10px">
+      Composite scores: mean=100, SD=15 · Shaded band = ±1 SEM ·
+      Physical composite source: Technical Manual Table (5B, 6B), SEM=6
+    </p>`;
+}
+
+function _cutoffBar4(score,band){
+  const p=v=>Math.min(97,Math.max(3,(v/100)*100));
+  const sp=p(score),dp=p(band.delay),gp=p(band.gifted);
+  return`<div class="brg-cz d" style="left:0;width:${dp}%"></div>
+    <div class="brg-cz n" style="left:${dp}%;width:${gp-dp}%"></div>
+    <div class="brg-cz g" style="left:${gp}%;right:0"></div>
+    <div class="brg-cmark" style="left:${dp}%"><span class="brg-clbl">Delay &lt;${band.delay}</span></div>
+    <div class="brg-cmark" style="left:${gp}%"><span class="brg-clbl">Gifted &gt;${band.gifted}</span></div>
+    <div class="brg-needle" style="left:${sp}%" data-v="${score}"></div>`;
+}
+
+function _barCls4(n){
+  if(n===null||typeof n==='string')return'no-data';
+  if(n>=115)return'above';if(n>=85)return'typical';return'below';
+}
+function _dbar4(label,cls,raw,comp,sem,rawStr){
+  const n=typeof comp==='number'?comp:null;
+  const bc=_barCls4(n);
+  const pct=n?Math.min(100,(n/145)*100):0;
+  const pLo=n?Math.min(100,((n-sem)/145)*100):0;
+  const pHi=n?Math.min(100,((n+sem)/145)*100):0;
+  return`<div class="brg-dbar">
+    <div class="brg-dbar-lbl">
+      <span><span class="dl">${label}</span><span class="dc">${_classify4(n)}</span></span>
+      <span><strong>${_fmt4(comp)}</strong>${n?` <span style="color:#aaa;font-size:0.7rem">±${sem}</span>`:''} <span style="color:#aaa;font-size:0.7rem">(${rawStr})</span></span>
+    </div>
+    <div class="brg-dbar-track">
+      ${n?`<div class="brg-sem-band ${bc}" style="left:${pLo}%;width:${pHi-pLo}%"></div>
+           <div class="brg-fill ${bc}" style="width:${pct}%"></div>
+           <div class="brg-avg"></div>`:''}
+    </div>
+  </div>`;
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  _buildAsmts4();
+  _buildSHSE4();
+});
+})();
+</script>
