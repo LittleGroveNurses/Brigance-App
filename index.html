@@ -3318,11 +3318,16 @@ function generateResults() {
     }
 
     // Build rows in Brigance domain order
+    // SH/SE always shown — even if questionnaire not yet completed (raw=null → prompt)
+    // phys/lang/acad only shown if items were present in the data sheet for this screen
+    const SH_SE_SCREENS = ['2yo','3yo','4yo','5yo','6yr']; // these have published SH/SE composites
     const compRows = ['phys','lang','acad','sh','se'].map(ck => {
       const raw = domRaw[ck] ?? null;
       const comp = (raw !== null) ? getBriganceComposite(cg.g, ck, raw, cg.bi) : null;
-      return { ck, raw, comp };
-    }).filter(r => r.raw !== null);
+      // Always include sh/se if this screen has published SH/SE composite tables
+      const alwaysShow = (ck === 'sh' || ck === 'se') && SH_SE_SCREENS.includes(cg.g);
+      return { ck, raw, comp, alwaysShow };
+    }).filter(r => r.raw !== null || r.alwaysShow);
 
     // Pending domains (awaiting Manual photos)
     const PENDING = {
@@ -3345,6 +3350,17 @@ function generateResults() {
         const color = domColors[ck];
         const isPending = pendingList.includes(ck);
 
+        if (raw === null) {
+          // SH/SE questionnaire not yet completed
+          html += `<div style="display:flex;justify-content:space-between;align-items:center;
+              padding:10px 0;border-bottom:1px solid #eef0f5;">
+            <span style="font-size:0.84rem;font-weight:700;color:${color}">${label}</span>
+            <span style="color:#aaa;font-size:0.78rem;">
+              Complete the SH/SE Questionnaire tab to generate this composite
+            </span>
+          </div>`;
+          return;
+        }
         if (isPending || !comp) {
           html += `<div style="display:flex;justify-content:space-between;align-items:center;
               padding:10px 0;border-bottom:1px solid #eef0f5;">
