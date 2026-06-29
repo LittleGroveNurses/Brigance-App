@@ -3251,106 +3251,136 @@ function generateResults() {
   }
 
   // ── Domain Composite Standard Scores ────────────────────────────────────
+  // Aggregates raw scores by Brigance domain string (exactly as in BRIGANCE_ITEMS),
+  // then looks up composite standard scores from Appendix E/F tables.
   const cg = getCompositeGroup(state.interval);
   if (cg) {
-    const domainMap = {
-      phys: { label: 'Physical Development',    key: 'phys' },
-      lang: { label: 'Language Development',    key: 'lang' },
-      acad: { label: 'Academic / Cognitive',    key: 'acad' },
-      sh:   { label: 'Self-help Skills',        key: 'sh'   },
-      se:   { label: 'Social-Emotional Skills', key: 'se'   },
-    };
-    // Build domain raw scores mapping from domainScores
-    // domainScores uses the BRIGANCE_ITEMS domain key (e.g. 'D1','D2' etc.)
-    // We need to map those to phys/lang/acad/sh/se
-    const ageGrp = getAgeGroup(state.interval);
     const sd2 = getScreenData(state.interval);
+
+    // Map Brigance domain strings → composite key
+    // 'Physical Development' → phys
+    // 'Language Development' → lang
+    // 'Academic/Cognitive', 'Academic/Cognitive: Literacy', 'Academic/Cognitive: Mathematics' → acad
+    // 'Adaptive: Self-help' → sh
+    // 'Adaptive: Social-Emotional' → se
+    const DOMAIN_TO_COMP = {
+      'Physical Development':             'phys',
+      'Language Development':             'lang',
+      'Academic/Cognitive':               'acad',
+      'Academic/Cognitive: Literacy':     'acad',
+      'Academic/Cognitive: Mathematics':  'acad',
+      'Adaptive: Self-help':              'sh',
+      'Adaptive: Social-Emotional':       'se',
+    };
+
+    const COMP_LABELS = {
+      phys: 'Physical Development',
+      lang: 'Language Development',
+      acad: 'Academic / Cognitive',
+      sh:   'Self-help Skills',
+      se:   'Social-Emotional Skills',
+    };
+    const domColors = {
+      phys:'var(--teal)', lang:'var(--navy)', acad:'var(--mauve)',
+      sh:'#2e7d32', se:'#4527a0'
+    };
+
+    // Accumulate raw scores by composite key
     const domRaw = {};
     if (sd2) {
       sd2.domains.forEach(d => {
-        const raw = domainScores[d.key] || 0;
-        // Map domain label to composite key
-        const lbl = (d.domain || d.label || '').toLowerCase();
-        if (lbl.includes('physical') || lbl.includes('motor') || lbl.includes('gross') || lbl.includes('fine'))
-          domRaw.phys = (domRaw.phys || 0) + raw;
-        else if (lbl.includes('language') || lbl.includes('receptive') || lbl.includes('expressive') || lbl.includes('articul'))
-          domRaw.lang = (domRaw.lang || 0) + raw;
-        else if (lbl.includes('academic') || lbl.includes('cognitive') || lbl.includes('literacy') || lbl.includes('numer') || lbl.includes('personal info') || lbl.includes('colour') || lbl.includes('concept') || lbl.includes('visual disc') || lbl.includes('count') || lbl.includes('quantity') || lbl.includes('word') || lbl.includes('read') || lbl.includes('print') || lbl.includes('sort') || lbl.includes('adds') || lbl.includes('solves') || lbl.includes('auditory') || lbl.includes('recogni'))
-          domRaw.acad = (domRaw.acad || 0) + raw;
-        else if (lbl.includes('self-help') || lbl.includes('self help') || lbl.includes('adaptive'))
-          domRaw.sh = (domRaw.sh || 0) + raw;
-        else if (lbl.includes('social') || lbl.includes('emotional'))
-          domRaw.se = (domRaw.se || 0) + raw;
+        const ck = DOMAIN_TO_COMP[d.domain];
+        if (ck) domRaw[ck] = (domRaw[ck] || 0) + (domainScores[d.key] || 0);
       });
-      // SH/SE also from shse questionnaire scores if present
-      if (state.shseScores) {
-        const shTotal = Object.values(state.shseScores).filter((_,i,a)=>i<17).reduce((s,v)=>s+(v||0),0);
-        const seTotal = Object.values(state.shseScores).filter((_,i,a)=>i>=17).reduce((s,v)=>s+(v||0),0);
-        if (shTotal > 0) domRaw.sh = shTotal;
-        if (seTotal > 0) domRaw.se = seTotal;
-      }
     }
 
-    const compRows = ['phys','lang','acad','sh','se'].map(dk => {
-      const raw = domRaw[dk] ?? null;
-      const comp = (raw !== null) ? getBriganceComposite(cg.g, dk, raw, cg.bi) : null;
-      return { dk, label: domainMap[dk].label, raw, comp };
-    }).filter(r => r.comp !== null || r.raw !== null);
+    // SH/SE: prefer the direct SHSE questionnaire totals if entered
+    // state.shseScores is { itemId: value } from renderSHSEQuestionnaire
+    // getSHSEKey maps band → SH/SE form; calcSHSEScores returns {sh, se}
+    if (typeof calcSHSEScores === 'function') {
+      const shseTotals = calcSHSEScores();
+      if (shseTotals && shseTotals.sh > 0) domRaw.sh = shseTotals.sh;
+      if (shseTotals && shseTotals.se > 0) domRaw.se = shseTotals.se;
+    }
+
+    // Build rows in Brigance domain order
+    const compRows = ['phys','lang','acad','sh','se'].map(ck => {
+      const raw = domRaw[ck] ?? null;
+      const comp = (raw !== null) ? getBriganceComposite(cg.g, ck, raw, cg.bi) : null;
+      return { ck, raw, comp };
+    }).filter(r => r.raw !== null);
+
+    // Pending domains (awaiting Manual photos)
+    const PENDING = {
+      '5yo': ['acad'],
+      '6yr': ['lang','acad'],
+    };
+    const pendingList = PENDING[cg.g] || [];
 
     if (compRows.length > 0) {
-      const domColors = {phys:'var(--teal)',lang:'var(--navy)',acad:'var(--mauve)',sh:'#2e7d32',se:'#4527a0'};
       html += `<div class="card" style="border:1.5px solid #dde2ef;">
         <div class="card-title" style="color:var(--navy);">Domain Composite Standard Scores</div>
         <div style="font-size:0.78rem;color:#6b7299;margin-bottom:14px;">
-          Mean=100, SD=15. Shaded band = ±1 SEM. Source: Brigance Screens III Technical Manual,
-          Appendix E &amp; F (Hawker Brownlow Education CA14300).
+          Mean=100, SD=15 &nbsp;·&nbsp; Shaded band = ±1 SEM &nbsp;·&nbsp;
+          Source: BRIGANCE® Screens III Technical Manual, Appendix E &amp; F
+          (Hawker Brownlow Education CA14300).
         </div>`;
 
-      compRows.forEach(({dk, label, raw, comp}) => {
-        if (!comp) {
-          html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #eef0f5;font-size:0.84rem;">
-            <span style="font-weight:600;color:${domColors[dk]}">${label}</span>
-            <span style="color:#aaa;font-size:0.78rem;">Raw ${raw ?? '—'} — composite table pending photo</span>
+      compRows.forEach(({ck, raw, comp}) => {
+        const label = COMP_LABELS[ck];
+        const color = domColors[ck];
+        const isPending = pendingList.includes(ck);
+
+        if (isPending || !comp) {
+          html += `<div style="display:flex;justify-content:space-between;align-items:center;
+              padding:10px 0;border-bottom:1px solid #eef0f5;">
+            <span style="font-size:0.84rem;font-weight:700;color:${color}">${label}</span>
+            <span style="color:#aaa;font-size:0.78rem;">
+              Raw ${raw} &nbsp;·&nbsp;
+              ${isPending ? '⏳ composite table pending' : 'not in published range'}
+            </span>
           </div>`;
           return;
         }
+
         const {score, isBelow, sem, classification} = comp;
-        const scoreDisp = isBelow ? `&lt;${score}` : score;
-        const clsColor = isBelow || score < 85 ? '#c62828' : score >= 115 ? '#1565c0' : '#2e7d32';
-        const pct = Math.min(98, Math.max(2, (score/145)*100));
-        const pLo = Math.min(98, Math.max(2, ((score-sem)/145)*100));
-        const pHi = Math.min(98, Math.max(2, ((score+sem)/145)*100));
-        const barClr = isBelow || score < 85 ? '#c62828' : score >= 115 ? '#1565c0' : '#2e7d32';
+        const dispScore = isBelow ? `&lt;${score}` : score;
+        const clsColor = (isBelow || score < 85) ? '#c62828' : score >= 115 ? '#1565c0' : '#2e7d32';
+        const pct  = Math.min(98, Math.max(2, (score / 145) * 100));
+        const pLo  = Math.min(98, Math.max(2, ((score - sem) / 145) * 100));
+        const pHi  = Math.min(98, Math.max(2, ((score + sem) / 145) * 100));
 
         html += `<div style="padding:10px 0;border-bottom:1px solid #eef0f5;">
-          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;flex-wrap:wrap;gap:4px;">
-            <span style="font-size:0.84rem;font-weight:700;color:${domColors[dk]}">${label}</span>
-            <span style="font-size:0.82rem;">
-              <strong style="color:${clsColor};font-size:1rem;">${scoreDisp}</strong>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;
+              margin-bottom:6px;flex-wrap:wrap;gap:4px;">
+            <span style="font-size:0.84rem;font-weight:700;color:${color}">${label}</span>
+            <span>
+              <strong style="color:${clsColor};font-size:1.05rem;">${dispScore}</strong>
               <span style="color:#aaa;font-size:0.72rem;margin-left:3px;">±${sem} SEM</span>
-              <span style="color:${clsColor};font-size:0.76rem;margin-left:6px;">${isBelow ? 'Below published range' : classification}</span>
-              <span style="color:#bbb;font-size:0.72rem;margin-left:6px;">(raw ${raw})</span>
+              <span style="color:${clsColor};font-size:0.76rem;margin-left:8px;font-weight:600;">
+                ${isBelow ? 'Below published range' : classification}
+              </span>
+              <span style="color:#bbb;font-size:0.72rem;margin-left:6px;">(raw&nbsp;${raw})</span>
             </span>
           </div>
           <div style="height:18px;background:#f0f2f8;border-radius:9px;position:relative;overflow:hidden;">
-            ${isBelow ? '' : `
-            <div style="position:absolute;left:${pLo}%;width:${pHi-pLo}%;height:100%;background:${barClr};opacity:0.2;border-radius:9px;"></div>
-            <div style="position:absolute;left:0;width:${pct}%;height:100%;background:${barClr};border-radius:9px;opacity:0.7;"></div>
-            <div style="position:absolute;left:68.97%;top:0;bottom:0;width:2px;background:rgba(0,0,0,0.12);"></div>
-            `}
+            ${isBelow ? `<div style="height:100%;width:4%;background:${clsColor};opacity:0.5;border-radius:9px;"></div>` : `
+            <div style="position:absolute;left:${pLo}%;width:${pHi-pLo}%;height:100%;
+                background:${clsColor};opacity:0.18;border-radius:9px;"></div>
+            <div style="position:absolute;left:0;width:${pct}%;height:100%;
+                background:${clsColor};opacity:0.65;border-radius:9px;"></div>
+            <div style="position:absolute;left:68.97%;top:0;bottom:0;width:2px;
+                background:rgba(0,0,0,0.12);"></div>`}
           </div>
         </div>`;
       });
 
-      html += `<div style="font-size:0.69rem;color:#aaa;margin-top:8px;">
-        ⚠ Composite scores pending: ${['5yo'].includes(cg.g) ? 'Academic/Cognitive (5yr)' : ['6yr'].includes(cg.g) ? 'Language &amp; Academic/Cognitive (6yr)' : 'none'}.
-        These domains show raw score only until Manual photos are supplied.
-      </div>` ;
-
-      // Remove the pending note if no pending
-      const noPending = !(['5yo','6yr'].includes(cg.g));
-      if (noPending) {
-        // will replace with clean close
+      if (pendingList.length > 0) {
+        const pendingLabels = pendingList.map(k => COMP_LABELS[k]).join(', ');
+        html += `<p style="font-size:0.7rem;color:#aaa;margin-top:8px;">
+          ⏳ Composite tables pending for: ${pendingLabels}.
+          Photograph the relevant Appendix E/F pages to complete.
+        </p>`;
       }
 
       html += `</div>`;
