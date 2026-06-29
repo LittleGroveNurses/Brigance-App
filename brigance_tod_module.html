@@ -1,0 +1,391 @@
+<!--
+  ════════════════════════════════════════════════════════════════════
+  BRIGANCE® Screens III — Toddler Data Entry Module (12–23 months)
+  Little Grove · Child, Adolescent & Family Health · App 2
+
+  INTEGRATION:
+  1. The <style> block is in brigance_2yr_module.html — do NOT duplicate it.
+  2. Paste the HTML panels wherever the Brigance section should appear.
+  3. Paste the <script> block before </body>.
+  4. Call  BriganceInitTod({ ageInDays: <number> })  once child DOB is known.
+  5. To retrieve results for parent letter / report:
+       const r = BriganceGetResultsTod();
+       // returns { total, langRaw, physRaw, shRaw, seRaw,
+       //           bandLabel, bandKey, classification,
+       //           delayCutoff, advancedCutoff }
+  6. Show panels via showBrgTabTod(name)  — 'entry' | 'results'
+  ════════════════════════════════════════════════════════════════════
+  NOTE: No Appendix E/F domain composite tables exist for toddler screens.
+        Results show total raw score vs. cutoffs only.
+        No SH/SE composite tables for this age group — raw scores only.
+        tod_16 band has no advancedCutoff in source data — 'Advanced'
+        classification is suppressed for that band.
+  ════════════════════════════════════════════════════════════════════
+-->
+
+<!-- Brigance Toddler panels (add inside your panel container) -->
+<div id="brg-tod-panel-entry" class="brg-panel" style="display:none">
+
+  <div class="brg-band-notice" id="brg-tod-band-notice">
+    ⚠ Age not yet calculated — enter child's DOB and screening date to determine the age band.
+  </div>
+
+  <div class="brg-totals">
+    <h3>Running Score — Toddler Screen (12–23 months)</h3>
+    <div class="brg-big"><span id="brg-tod-total">0</span><small id="brg-tod-max"> / —</small></div>
+    <div class="brg-chips" style="grid-template-columns:repeat(4,1fr)">
+      <div class="brg-chip lang"><div class="n" id="brg-tod-l">0</div><div class="lbl">Language</div></div>
+      <div class="brg-chip phys"><div class="n" id="brg-tod-p">0</div><div class="lbl">Physical</div></div>
+      <div class="brg-chip sh"><div class="n" id="brg-tod-sh">0</div><div class="lbl">Self-help</div></div>
+      <div class="brg-chip se"><div class="n" id="brg-tod-se">0</div><div class="lbl">Social-Em.</div></div>
+    </div>
+    <p style="font-size:0.72rem;color:#888;margin-top:8px;text-align:center">
+      ℹ Domain composite scores are not published for toddler screens. Total raw score is compared to cutoffs.
+    </p>
+  </div>
+
+  <div id="brg-tod-asmts"></div>
+</div>
+
+<div id="brg-tod-panel-results" class="brg-panel" style="display:none">
+  <div id="brg-tod-results-body">
+    <p style="color:#888;font-size:0.85rem;text-align:center;padding:20px">Complete the Data Sheet, then tap Brigance Results.</p>
+  </div>
+</div>
+
+<!-- ═══════ SCRIPT: paste before </body> ═══════ -->
+<script id="brigance-tod-module">
+(function(){
+// ══════════════════════════════════════════════════════════
+// TODDLER ASSESSMENT DATA
+// Source: BRIGANCE® Screens III © 2014 Curriculum Associates
+// Hawker Brownlow Education CA14300
+// ══════════════════════════════════════════════════════════
+const ASMTS_TOD=[
+  {code:'1B',domain:'lang',domainLabel:'Language Development',title:'Receptive Language – General',pts:1,
+   items:[
+     'Looks at named objects',
+     'Responds to the word no',
+   ]},
+  {code:'2B',domain:'lang',domainLabel:'Language Development',title:'Receptive Language – Identifies Parts of the Body',pts:2,
+   note:'Points to: eyes, nose, mouth, hair, car, apple, bird, aeroplane',
+   items:[
+     'eyes','nose','mouth','hair','car','apple','bird','aeroplane',
+   ]},
+  {code:'3B',domain:'lang',domainLabel:'Language Development',title:'Receptive Language – Identifies Pictures',pts:2,
+   note:'Points to: cat, dog, key, car, apple, bird',
+   items:[
+     'cat','dog','key','car','apple','bird',
+   ]},
+  {code:'4B',domain:'lang',domainLabel:'Language Development',title:'Receptive Language – Knows Sounds Animals Make',pts:2,
+   note:'Knows sound of: cat, dog, cow, bird',
+   items:[
+     'cat','dog','cow','bird',
+   ]},
+  {code:'5B',domain:'phys',domainLabel:'Physical Development',title:'Gross Motor Skills',pts:1,
+   items:[
+     'Sits erect and unsupported',
+     'Gets up on hands and knees and moves about (or scoots on bottom)',
+     'Pulls to standing position',
+     'Walks without frequent falling',
+     'Stands on one foot with one hand held',
+     'Runs, but not necessarily well',
+     'Jumps (at least one foot leaves the floor)',
+     'Walks erect with arms swinging',
+     'Attempts to jump',
+     'Unwraps objects',
+     'Runs well',
+   ]},
+  {code:'6B',domain:'phys',domainLabel:'Physical Development',title:'Fine Motor Skills',pts:1,
+   items:[
+     'Uses a neat pincer grasp',
+     'Squeezes toy with hand',
+     'Puts objects into a container',
+     'Takes objects out of a container',
+     'Grasps and releases objects easily',
+     'Deliberately pours/dumps objects from container',
+     'Imitates scribble',
+   ]},
+  {code:'7B',domain:'lang',domainLabel:'Language Development',title:'Expressive Language – General',pts:1,
+   items:[
+     'Imitates sounds or words',
+     'Holds up objects for attention',
+     'Points to objects for attention or words',
+     'Shakes head for no or points to show preference',
+     'Says real words',
+     'Pretend talks with some real words',
+   ]},
+  {code:'8B',domain:'lang',domainLabel:'Language Development',title:'Expressive Language – Names Objects',pts:1,
+   note:'Names: spoon, ball, cup, book, block, box, toy',
+   items:[
+     'spoon','ball','cup','book','block','box','toy',
+   ]},
+  {code:'9B',domain:'lang',domainLabel:'Language Development',title:'Expressive Language – Uses Phrases',pts:1.5,
+   items:[
+     'Repeats phrases',
+     'Uses two or three words in combination',
+   ]},
+  {code:'10B',domain:'sh',domainLabel:'Adaptive: Self-help',title:'Self-help Skills',pts:1,
+   items:[
+     'Feeds self cracker',
+     'Drinks from cup held by adult',
+     'Chews and swallows',
+     'Cooperates in dressing',
+     'Holds cup with both hands and drinks',
+     'Assists in dressing',
+     'Removes shoes',
+     'Begins to anticipate/communicate toileting needs',
+   ]},
+  {code:'11B',domain:'se',domainLabel:'Adaptive: Social-Emotional',title:'Social and Emotional Skills',pts:1,
+   items:[
+     'Gives affection',
+     'Shows interest in activities of others',
+     'Initiates interactions with other children',
+     'Watches faces for emotional clues',
+     'Shows pride in new accomplishments',
+     'Explores and returns to parent/caregiver',
+     'Cooperates in dressing',
+     'Assists in dressing',
+     'Likes to perform for others',
+     'Insists upon doing things for himself/herself',
+     'Goes to bathroom on own',
+     'Shows interest in activities of others (2)',
+     'Likes to perform for others (2)',
+   ]},
+];
+
+// ── Band data (from BRIGANCE_DATA in index.html) ──
+// NOTE: tod_16 has no advancedCutoff — advanced classification suppressed for that band.
+const BANDS_TOD={
+  'tod_12':{label:'Toddler – 12–13 months',ageRange:'12m 0d – 13m 29d',minDays:365, maxDays:425, delay:32, advanced:51},
+  'tod_14':{label:'Toddler – 14–15 months',ageRange:'14m 0d – 15m 29d',minDays:426, maxDays:487, delay:39, advanced:62},
+  'tod_16':{label:'Toddler – 16–17 months',ageRange:'16m 0d – 17m 29d',minDays:488, maxDays:548, delay:49, advanced:null},
+  'tod_18':{label:'Toddler – 18–19 months',ageRange:'18m 0d – 19m 29d',minDays:549, maxDays:609, delay:56, advanced:75},
+  'tod_20':{label:'Toddler – 20–21 months',ageRange:'20m 0d – 21m 29d',minDays:610, maxDays:669, delay:66, advanced:81},
+  'tod_22':{label:'Toddler – 22–23 months',ageRange:'22m 0d – 23m 29d',minDays:670, maxDays:729, delay:70, advanced:89},
+};
+
+// Compute maxes per domain
+const MAX_TOD_LANG = ASMTS_TOD.filter(a=>a.domain==='lang').reduce((s,a)=>s+a.items.length*a.pts,0);
+const MAX_TOD_PHYS = ASMTS_TOD.filter(a=>a.domain==='phys').reduce((s,a)=>s+a.items.length*a.pts,0);
+const MAX_TOD_SH   = ASMTS_TOD.filter(a=>a.domain==='sh').reduce((s,a)=>s+a.items.length*a.pts,0);
+const MAX_TOD_SE   = ASMTS_TOD.filter(a=>a.domain==='se').reduce((s,a)=>s+a.items.length*a.pts,0);
+const MAX_TOD=ASMTS_TOD.reduce((s,a)=>s+a.items.length*a.pts,0);
+
+// ══════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════
+const BST={checked:{}, ageInDays:null, bandKey:null};
+ASMTS_TOD.forEach(a=>{BST.checked[a.code]=new Set();});
+
+// ══════════════════════════════════════════════════════════
+// PUBLIC API
+// ══════════════════════════════════════════════════════════
+window.BriganceInitTod=function({ageInDays}){
+  BST.ageInDays=ageInDays;
+  BST.bandKey=null;
+  for(const[k,v] of Object.entries(BANDS_TOD))
+    if(ageInDays>=v.minDays&&ageInDays<=v.maxDays){BST.bandKey=k;break;}
+  const notice=document.getElementById('brg-tod-band-notice');
+  if(notice){
+    if(!BST.bandKey){notice.classList.add('show');}
+    else{notice.classList.remove('show');}
+  }
+};
+
+window.BriganceGetResultsTod=function(){
+  const r=_calcTod();
+  const band=BST.bandKey?BANDS_TOD[BST.bandKey]:null;
+  const cls=_clsTod(r.tot);
+  return{
+    total:r.tot, langRaw:r.lang, physRaw:r.phys, shRaw:r.sh, seRaw:r.se,
+    bandLabel:band?band.label:'—',
+    bandKey:BST.bandKey||null,
+    classification:cls,
+    delayCutoff:band?band.delay:null,
+    advancedCutoff:band?band.advanced:null,
+  };
+};
+
+window.showBrgTabTod=function(name){
+  document.querySelectorAll('[id^="brg-tod-panel-"]').forEach(p=>p.style.display='none');
+  const panel=document.getElementById('brg-tod-panel-'+name);
+  if(panel)panel.style.display='block';
+  if(name==='results')_renderTodResults();
+};
+
+// ══════════════════════════════════════════════════════════
+// INTERNAL
+// ══════════════════════════════════════════════════════════
+function _calcTod(){
+  let tot=0,lang=0,phys=0,sh=0,se=0;
+  ASMTS_TOD.forEach(a=>{
+    const pts=BST.checked[a.code].size*a.pts; tot+=pts;
+    if(a.domain==='lang')lang+=pts;
+    if(a.domain==='phys')phys+=pts;
+    if(a.domain==='sh')  sh  +=pts;
+    if(a.domain==='se')  se  +=pts;
+  });
+  return{tot,lang,phys,sh,se};
+}
+
+function _clsTod(tot){
+  if(!BST.bandKey)return'typical';
+  const b=BANDS_TOD[BST.bandKey];
+  if(tot<b.delay)return'delay';
+  if(b.advanced!==null&&tot>=b.advanced)return'advanced';
+  return'typical';
+}
+
+function _clsLabelTod(c){
+  return{delay:'Potential Delay',typical:'Typical Development',advanced:'Advanced Development'}[c]||c;
+}
+
+function _buildTodAsmts(){
+  const c=document.getElementById('brg-tod-asmts');if(!c)return;
+  c.innerHTML='';
+  ASMTS_TOD.forEach(a=>{
+    const max=(a.pts*a.items.length);
+    const d=document.createElement('div');d.className='brg-asmt';d.id='brg-tod-asmt-'+a.code;
+    d.innerHTML=`<div class="brg-asmt-hdr">
+        <span class="brg-code ${a.domain}">${a.code}</span>
+        <h4>${a.title}</h4>
+        <span class="brg-dtag ${a.domain}">${a.domainLabel}</span>
+        <span class="brg-schip" id="brg-tod-sc-${a.code}">0/${a.pts%1?max.toFixed(1):max}</span>
+      </div>
+      ${a.note?`<div style="font-size:0.72rem;color:#888;padding:5px 14px 0">ℹ ${a.note}</div>`:''}
+      <div class="brg-items">${a.items.map((it,i)=>`
+        <div class="brg-item" data-code="${a.code}" data-idx="${i}" onclick="_bToggleTod('${a.code}',${i},this)">
+          <div class="brg-chk"><svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+            <path d="M1.5 5L4.5 8L10.5 1.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <span class="brg-itxt">${it}</span>
+          <span class="brg-ipts">${a.pts}pt</span>
+        </div>`).join('')}
+      </div>
+      <div class="brg-foot"><span>${a.pts} point${a.pts>1?'s':''} per item · max ${a.pts%1?max.toFixed(1):max}</span></div>`;
+    c.appendChild(d);
+  });
+}
+
+window._bToggleTod=function(code,idx,row){
+  const s=BST.checked[code];
+  if(s.has(idx)){s.delete(idx);row.classList.remove('on');}else{s.add(idx);row.classList.add('on');}
+  _recalcTod();
+};
+
+function _recalcTod(){
+  let tot=0,lang=0,phys=0,sh=0,se=0;
+  ASMTS_TOD.forEach(a=>{
+    const pts=BST.checked[a.code].size*a.pts; tot+=pts;
+    if(a.domain==='lang')lang+=pts;
+    if(a.domain==='phys')phys+=pts;
+    if(a.domain==='sh')  sh  +=pts;
+    if(a.domain==='se')  se  +=pts;
+    const max=a.pts*a.items.length;
+    const ch=document.getElementById('brg-tod-sc-'+a.code);
+    if(ch)ch.textContent=(pts%1?pts.toFixed(1):pts)+'/'+(max%1?max.toFixed(1):max);
+  });
+  const el=id=>document.getElementById(id);
+  if(el('brg-tod-total'))el('brg-tod-total').textContent=tot%1?tot.toFixed(1):tot;
+  if(el('brg-tod-l'))el('brg-tod-l').textContent=lang%1?lang.toFixed(1):lang;
+  if(el('brg-tod-p'))el('brg-tod-p').textContent=phys;
+  if(el('brg-tod-sh'))el('brg-tod-sh').textContent=sh;
+  if(el('brg-tod-se'))el('brg-tod-se').textContent=se;
+}
+
+function _renderTodResults(){
+  const r=_calcTod();
+  const band=BST.bandKey?BANDS_TOD[BST.bandKey]:null;
+  const cls=_clsTod(r.tot);
+  const body=document.getElementById('brg-tod-results-body');
+  if(!body)return;
+
+  body.innerHTML=`
+    <h3 style="font-size:0.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--teal);margin-bottom:10px">BRIGANCE® Screens III — Toddler Screen</h3>
+
+    ${band?`<p style="font-size:0.78rem;color:#666;margin-bottom:8px">
+      Age band: <strong>${band.label}</strong> · ${band.ageRange}
+    </p>`:''}
+
+    <div style="margin-bottom:12px">
+      <span class="brg-result-badge ${cls==='delay'?'delay':cls==='advanced'?'gifted':'typical'}">${_clsLabelTod(cls)}</span>
+      <strong style="font-size:1.3rem;margin-left:8px">${r.tot%1?r.tot.toFixed(1):r.tot}</strong>
+      <span style="color:#888"> / ${MAX_TOD%1?MAX_TOD.toFixed(1):MAX_TOD}</span>
+    </div>
+
+    ${band?`
+    <div class="brg-ctrack" style="margin-bottom:12px">
+      ${_todCutoffBar(r.tot,band)}
+    </div>
+    <p style="font-size:0.74rem;color:#666;margin-bottom:14px">
+      Cutoffs for <strong>${band.label}</strong>:
+      Potential delay &lt;${band.delay}
+      ${band.advanced!==null?' · Typical development '+band.delay+'–'+(band.advanced-1)+' · Advanced development ≥'+band.advanced:' · Typical / Advanced threshold not published for this band'}
+    </p>`:'<p style="font-size:0.78rem;color:#888;margin-bottom:12px">Enter child\'s DOB to display cutoff zones.</p>'}
+
+    <h4 style="font-size:0.76rem;text-transform:uppercase;letter-spacing:.08em;color:var(--teal);margin:0 0 8px">Scores by Domain</h4>
+    <p style="font-size:0.71rem;color:#aaa;margin-bottom:8px">
+      ℹ Domain composite scores (standard scores) are not published for toddler screens.
+      Raw domain scores are shown for clinical reference only.
+    </p>
+
+    <table style="width:100%;border-collapse:collapse;font-size:0.82rem;margin-bottom:12px">
+      <thead>
+        <tr style="background:var(--grey);font-size:0.71rem;text-transform:uppercase;letter-spacing:.06em">
+          <th style="text-align:left;padding:7px 10px;font-weight:700;color:var(--teal)">Domain</th>
+          <th style="text-align:right;padding:7px 10px;font-weight:700;color:var(--teal)">Raw</th>
+          <th style="text-align:right;padding:7px 10px;font-weight:700;color:var(--teal)">Max</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${[
+          ['Language Development','lang',r.lang,MAX_TOD_LANG],
+          ['Physical Development','phys',r.phys,MAX_TOD_PHYS],
+          ['Self-help Skills','sh',r.sh,MAX_TOD_SH],
+          ['Social-Emotional Skills','se',r.se,MAX_TOD_SE],
+        ].map(([lbl,dom,raw,max],i)=>`
+          <tr style="border-bottom:1px solid var(--border);background:${i%2?'#fafbfd':'#fff'}">
+            <td style="padding:8px 10px">
+              <span class="brg-dtag ${dom}" style="margin-right:6px">${dom.toUpperCase()}</span>${lbl}
+            </td>
+            <td style="padding:8px 10px;text-align:right;font-weight:700">${raw%1?raw.toFixed(1):raw}</td>
+            <td style="padding:8px 10px;text-align:right;color:#aaa">${max%1?max.toFixed(1):max}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+
+    <p style="font-size:0.69rem;color:#aaa;margin-top:10px">
+      Source: BRIGANCE® Screens III © 2013 Curriculum Associates · Hawker Brownlow Education CA14300 ·
+      Toddler screening is criterion-referenced. Cutoffs indicate expected skill acquisition trajectory
+      and are not age-equivalent scores. Note: 9B (Uses Phrases) is scored at 1.5 pts/item.
+    </p>`;
+}
+
+function _todCutoffBar(score,band){
+  const MAX_SCORE=MAX_TOD;
+  const p=v=>Math.min(97,Math.max(3,(v/MAX_SCORE)*100));
+  const sp=p(score),dp=p(band.delay);
+  const ap=band.advanced!==null?p(band.advanced):null;
+  if(ap!==null){
+    return`<div class="brg-cz d" style="left:0;width:${dp}%"></div>
+      <div class="brg-cz n" style="left:${dp}%;width:${ap-dp}%"></div>
+      <div class="brg-cz g" style="left:${ap}%;right:0"></div>
+      <div class="brg-cmark" style="left:${dp}%"><span class="brg-clbl">Delay &lt;${band.delay}</span></div>
+      <div class="brg-cmark" style="left:${ap}%"><span class="brg-clbl">Advanced ≥${band.advanced}</span></div>
+      <div class="brg-needle" style="left:${sp}%" data-v="${score}"></div>`;
+  } else {
+    return`<div class="brg-cz d" style="left:0;width:${dp}%"></div>
+      <div class="brg-cz n" style="left:${dp}%;right:0"></div>
+      <div class="brg-cmark" style="left:${dp}%"><span class="brg-clbl">Delay &lt;${band.delay}</span></div>
+      <div class="brg-needle" style="left:${sp}%" data-v="${score}"></div>`;
+  }
+}
+
+// ══ Init ══
+document.addEventListener('DOMContentLoaded',()=>{
+  _buildTodAsmts();
+  const mx=document.getElementById('brg-tod-max');
+  if(mx)mx.textContent=' / '+(MAX_TOD%1?MAX_TOD.toFixed(1):MAX_TOD);
+});
+})();
+</script>
