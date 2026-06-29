@@ -1621,6 +1621,217 @@ function startAssessment() {
 // Total score = sum of all domain scores (out of 100).
 // ═══════════════════════════════════════════════════════════════════════════
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BRIGANCE SCREENS III — DOMAIN COMPOSITE STANDARD SCORES
+// Source: Technical Manual Appendix E & F (Hawker Brownlow Education CA14300)
+// Composite scores: mean=100, SD=15. Negative values = published as "<N".
+// Domain keys match BRIGANCE_ITEMS domain keys.
+// Index = total raw score for that domain.
+// ═══════════════════════════════════════════════════════════════════════════
+const BRIGANCE_COMPOSITES = {
+
+  // ── 2-YEAR (bands 2yo_0 | 2yo_3 | 2yo_6 | 2yo_9) ──────────────────────
+  // Physical: 5C, 7C, 8C — max 30 (but table goes raw 0–30 → index 0–30)
+  '2yo': {
+    bandKeys: ['2yo_0','2yo_3','2yo_6','2yo_9'],
+    phys: { sem:5, d:[
+      [68,68,68],[72,71,70],[76,74,73],[79,77,75],[82,79,77],[84,81,79],
+      [86,83,81],[88,85,83],[90,87,84],[92,88,86],[93,90,88],[95,91,89],
+      [96,93,91],[98,94,92],[99,96,93],[101,97,95],[102,98,96],[104,100,98],
+      [105,101,99],[107,103,101],[108,104,102],[110,105,104],[111,107,105],
+      [113,108,107],[114,110,108],[116,111,110],[117,113,111],[119,114,113],
+      [120,116,114],[122,117,116],[123,119,117],
+    ]},
+    lang: { sem:4, d:[
+      [68,68,68],[73,71,70],[77,74,73],[80,77,75],[83,79,77],[85,81,79],
+      [87,83,81],[89,85,83],[90,86,84],[92,88,86],[93,89,87],[95,91,89],
+      [96,92,90],[98,94,92],[99,95,93],[101,97,95],[102,98,96],[104,99,97],
+      [105,101,99],[107,102,100],[108,104,102],[110,105,103],[111,107,105],
+      [113,108,106],[114,110,108],[116,111,109],[117,113,111],[119,114,112],
+      [120,116,114],[122,117,115],[123,119,117],[125,120,118],[126,122,120],
+      [128,123,121],[129,125,123],
+    ]},
+    acad: { sem:5, d:[
+      [68,68,68],[72,70,69],[76,73,72],[79,76,74],[82,78,77],[84,80,79],
+      [86,82,81],[88,84,82],[89,85,84],[91,87,85],[92,88,87],[94,90,88],
+      [95,91,90],[97,93,91],[98,94,92],[100,96,94],[101,97,95],[103,99,97],
+      [104,100,98],[106,101,100],[107,103,101],[109,104,103],[110,106,104],
+      [112,107,106],[113,109,107],[115,110,109],[116,112,110],[118,113,112],
+      [119,115,113],[121,116,115],[122,118,116],[124,119,118],[125,121,119],
+      [127,122,121],[128,124,122],[130,125,124],[131,127,125],[133,128,126],
+      [135,130,128],[136,131,129],
+    ]},
+    sh: { sem:5, d:[
+      [68,68,68],[79,77,74],[91,88,85],[103,98,95],[115,110,107],[127,122,118],[null,null,130],
+    ]},
+    se: { sem:4, d:[
+      [68,68,68],[73,71,70],[79,77,75],[84,82,80],[89,87,85],[94,92,90],
+      [100,97,95],[105,102,100],[110,107,105],[115,112,110],[121,118,116],[126,123,121],[130,128,126],
+    ]},
+  },
+
+  // ── 3-YEAR (bands 3yo_0 | 3yo_4 | 3yo_8) ───────────────────────────────
+  '3yo': {
+    bandKeys: ['3yo_0','3yo_4','3yo_8'],
+    phys: { sem:6, d:[
+      [67,66,64],[69,69,66],[73,73,69],[74,74,69],[76,75,71],[79,76,72],
+      [80,77,73],[81,77,74],[82,78,74],[83,79,76],[84,80,77],[86,81,78],
+      [86,83,79],[88,84,80],[90,85,81],[91,87,83],[93,89,85],[95,90,86],
+      [96,91,87],[98,93,89],[100,95,91],[101,96,92],[104,98,94],[107,100,95],
+      [108,101,97],[110,103,99],[112,105,101],[114,107,102],[117,109,105],
+      [123,114,109],[127,118,113],[130,121,117],
+    ]},
+    lang: { sem:3, d:[
+      [69,68,58],[71,69,60],[73,71,62],[75,72,64],[77,74,66],[77,75,67],
+      [78,77,68],[79,77,68],[79,78,69],[80,78,70],[81,79,71],[81,81,72],
+      [82,82,72],[83,82,73],[84,83,74],[84,83,75],[85,84,75],[85,84,76],
+      [86,85,76],[87,85,77],[88,86,78],[89,86,79],[89,88,80],[90,88,81],
+      [90,89,82],[91,89,82],[91,90,83],[91,90,83],[91,90,84],[92,91,84],
+      [93,91,85],[93,92,85],[94,92,86],[95,93,86],[96,93,87],[97,94,88],
+      [98,95,89],[99,96,90],[101,97,91],[102,98,92],[103,99,94],[104,101,95],
+      [107,102,97],[109,103,99],[111,105,100],[113,107,103],[114,109,105],
+      [118,111,108],[122,120,117],
+    ]},
+    acad: { sem:6, d:[
+      [71,69,64],[79,77,71],[82,79,73],[83,80,75],[84,82,76],[87,84,78],
+      [90,86,80],[91,88,82],[93,90,83],[97,93,86],[98,94,87],[100,96,89],
+      [102,98,91],[104,100,93],[106,101,94],[110,105,98],[113,107,100],
+      [114,109,102],[119,114,106],[123,118,112],[126,122,115],[130,127,119],
+    ]},
+    sh: { sem:5, d:[
+      [68,68,68],[73,73,70],[77,77,72],[80,79,74],[83,82,76],[85,82,77],
+      [88,84,79],[91,86,81],[95,89,85],[98,92,88],[102,95,91],[105,98,94],
+      [109,102,98],[114,105,102],[122,110,106],[130,117,114],[null,126,123],[null,130,126],
+    ]},
+    se: { sem:5, d:[
+      [68,68,68],[75,75,75],[83,80,80],[88,84,84],[92,88,88],[95,91,91],
+      [99,93,93],[101,94,93],[102,100,100],[105,104,104],[108,106,106],
+      [111,110,110],[114,112,112],[117,112,110],[120,118,117],[125,123,122],[130,130,129],
+    ]},
+  },
+
+  // ── 4-YEAR (bands 4yo_0 | 4yo_4 | 4yo_8) ───────────────────────────────
+  '4yo': {
+    bandKeys: ['4yo_0','4yo_4','4yo_8'],
+    phys: { sem:6, d:[
+      [78,68,68],[81,73,73],[84,74,75],[87,77,78],[88,79,79],[91,82,82],
+      [94,85,85],[99,91,91],[103,95,95],[106,99,99],[109,102,101],[112,105,105],
+      [115,108,108],[118,112,111],[123,118,117],[130,127,125],
+    ]},
+    lang: { sem:4, d:[
+      [68,68,68],[72,71,70],[75,73,72],[78,75,74],[80,77,76],[82,79,78],
+      [83,80,79],[85,81,80],[86,83,82],[88,84,83],[89,85,84],[90,87,86],
+      [91,88,87],[92,89,88],[93,90,89],[95,91,90],[96,93,92],[97,94,93],
+      [99,95,94],[100,97,96],[101,98,97],[103,99,98],[104,100,99],[106,102,101],
+      [107,103,102],[109,105,104],[110,106,105],[112,108,107],[113,109,108],
+      [115,111,110],[117,112,111],[119,114,113],[121,116,115],[123,118,117],
+      [125,120,119],[127,122,121],[129,124,123],[131,127,126],[133,129,128],
+      [135,131,130],[137,133,132],[139,135,134],[141,137,136],[143,139,138],
+      [145,141,140],[147,143,142],[149,145,144],[151,147,146],
+    ]},
+    acad: { sem:5, d:[
+      [68,68,68],[73,70,70],[77,73,73],[80,76,76],[83,79,79],[86,81,81],
+      [88,83,83],[90,85,85],[92,87,87],[94,89,89],[96,91,91],[98,93,93],
+      [99,94,94],[101,96,96],[102,97,97],[104,99,99],[106,101,101],[107,102,102],
+      [109,104,103],[110,105,104],[112,107,106],[113,108,107],[115,110,109],
+      [116,111,110],[118,113,112],[119,114,113],[121,116,115],[123,118,117],
+      [124,119,118],[126,121,120],[128,123,122],[130,125,124],[132,127,126],
+      [134,129,128],[136,131,130],[138,133,132],[140,135,134],[142,137,136],
+    ]},
+    sh: { sem:5, d:[
+      [68,68,-68],[70,69,-68],[72,71,-68],[76,74,70],[78,78,74],
+      [81,79,76],[83,80,76],[85,82,78],[91,88,84],[93,93,89],
+      [96,94,91],[98,95,91],[99,96,93],[100,98,94],[102,101,97],
+      [108,105,102],[116,113,110],[126,126,122],
+    ]},
+    se: { sem:4, d:[
+      [75,71,67],[81,77,74],[86,84,80],[90,86,85],[91,89,88],[93,91,90],
+      [95,93,91],[96,94,93],[97,96,95],[99,98,97],[101,100,99],[103,102,102],
+      [106,105,105],[109,108,109],[113,113,114],[117,117,null],[125,125,122],
+    ]},
+  },
+
+  // ── 5-YEAR / FOUNDATION (bands 5yo_0 | 5yo_6) ───────────────────────────
+  '5yo': {
+    bandKeys: ['5yo_0','5yo_6'],
+    phys: { sem:5, d:[
+      [-60,-56],[-60,-56],[60,-56],[64,56],[67,59],
+      [70,62],[73,65],[76,68],[80,72],[83,75],[87,79],[92,84],[99,91],[114,105],
+    ]},
+    lang: { sem:7, d:[
+      [61,-59],[67,-59],[68,-59],[69,-59],[69,-59],
+      [70,59],[71,63],[73,66],[78,71],[81,75],[83,78],[86,82],[88,84],[89,85],
+      [93,90],[102,95],[117,112],
+    ]},
+    acad: { sem:5, d: null },  // AWAITING PHOTO — not yet available
+    sh: { sem:6, d:[
+      [-68,-68],[-68,-68],[-68,-68],[68,68],[74,74],[75,75],
+      [75,76],[76,77],[77,77],[79,79],[82,79],[82,82],[84,84],[87,87],
+      [91,90],[96,96],[105,104],[119,119],
+    ]},
+    se: { sem:5, d:[
+      [-72,-66],[-72,-66],[72,66],[78,70],[80,74],[82,77],[85,80],
+      [88,83],[90,85],[94,90],[96,92],[98,95],[101,98],[104,101],[107,105],[113,111],[123,123],
+    ]},
+  },
+
+  // ── 6-YEAR / YEAR ONE (bands g1_0 | g1_6) ───────────────────────────────
+  '6yr': {
+    bandKeys: ['g1_0','g1_6'],
+    phys: { sem:7, d:[
+      [-55,-52],[-55,-52],[55,-52],[65,-52],[70,-52],
+      [74,52],[77,57],[82,64],[84,78],[109,104],
+    ]},
+    lang: { sem:4, d: null },  // AWAITING PHOTO — not yet available
+    acad: { sem:4, d: null },  // AWAITING PHOTO — not yet available
+    sh: { sem:6, d:[
+      [-56,-55],[-56,-55],[-56,-55],[-56,-55],[-56,-55],
+      [60,55],[68,58],[69,63],[71,64],[75,68],[78,71],[82,75],[83,77],[85,79],
+      [88,81],[92,85],[97,90],[116,109],
+    ]},
+    se: { sem:5, d:[
+      [64,64],[68,68],[70,70],[72,72],[74,74],[76,76],[79,79],[80,80],
+      [83,83],[85,85],[88,90],[90,93],[93,96],[97,99],[101,105],[106,117],[119,117],
+    ]},
+  },
+};
+
+// ── Composite lookup helper ─────────────────────────────────────────────────
+// Returns { score: number|'<N'|null, sem: number, classification: string }
+function getBriganceComposite(groupKey, domain, rawScore, bandIndex) {
+  const g = BRIGANCE_COMPOSITES[groupKey];
+  if (!g) return null;
+  const tbl = g[domain];
+  if (!tbl || !tbl.d) return null;
+  const raw = Math.floor(rawScore);  // half-credit: use next lowest
+  const row = tbl.d[raw];
+  if (!row) return null;
+  const v = row[bandIndex];
+  if (v === null || v === undefined) return null;
+  const isBelow = v < 0;
+  const score = isBelow ? -v : v;  // stored negative = "<N"
+  const cls = isBelow ? 'Below published range' :
+    score >= 115 ? 'Above Average' :
+    score >= 85  ? 'Average' :
+    score >= 70  ? 'Low Average' : 'Below Average';
+  return { score, isBelow, sem: tbl.sem, classification: cls };
+}
+
+// ── Map band key → composite group key and band index ──────────────────────
+function getCompositeGroup(bandKey) {
+  if (!bandKey) return null;
+  const map = {
+    '2yo_0':{g:'2yo',bi:0},'2yo_3':{g:'2yo',bi:1},'2yo_6':{g:'2yo',bi:2},'2yo_9':{g:'2yo',bi:3},
+    '3yo_0':{g:'3yo',bi:0},'3yo_4':{g:'3yo',bi:1},'3yo_8':{g:'3yo',bi:2},
+    '4yo_0':{g:'4yo',bi:0},'4yo_4':{g:'4yo',bi:1},'4yo_8':{g:'4yo',bi:2},
+    '5yo_0':{g:'5yo',bi:0},'5yo_6':{g:'5yo',bi:1},
+    'g1_0': {g:'6yr',bi:0},'g1_6': {g:'6yr',bi:1},
+  };
+  return map[bandKey] || null;
+}
+
+
 const BRIGANCE_ITEMS = {
 
   // ── INFANT (birth–11 months) ──────────────────────────────────────────────
@@ -3037,6 +3248,113 @@ function generateResults() {
       </tr>`;
     });
     html += `</tbody></table></div>`;
+  }
+
+  // ── Domain Composite Standard Scores ────────────────────────────────────
+  const cg = getCompositeGroup(state.interval);
+  if (cg) {
+    const domainMap = {
+      phys: { label: 'Physical Development',    key: 'phys' },
+      lang: { label: 'Language Development',    key: 'lang' },
+      acad: { label: 'Academic / Cognitive',    key: 'acad' },
+      sh:   { label: 'Self-help Skills',        key: 'sh'   },
+      se:   { label: 'Social-Emotional Skills', key: 'se'   },
+    };
+    // Build domain raw scores mapping from domainScores
+    // domainScores uses the BRIGANCE_ITEMS domain key (e.g. 'D1','D2' etc.)
+    // We need to map those to phys/lang/acad/sh/se
+    const ageGrp = getAgeGroup(state.interval);
+    const sd2 = getScreenData(state.interval);
+    const domRaw = {};
+    if (sd2) {
+      sd2.domains.forEach(d => {
+        const raw = domainScores[d.key] || 0;
+        // Map domain label to composite key
+        const lbl = (d.domain || d.label || '').toLowerCase();
+        if (lbl.includes('physical') || lbl.includes('motor') || lbl.includes('gross') || lbl.includes('fine'))
+          domRaw.phys = (domRaw.phys || 0) + raw;
+        else if (lbl.includes('language') || lbl.includes('receptive') || lbl.includes('expressive') || lbl.includes('articul'))
+          domRaw.lang = (domRaw.lang || 0) + raw;
+        else if (lbl.includes('academic') || lbl.includes('cognitive') || lbl.includes('literacy') || lbl.includes('numer') || lbl.includes('personal info') || lbl.includes('colour') || lbl.includes('concept') || lbl.includes('visual disc') || lbl.includes('count') || lbl.includes('quantity') || lbl.includes('word') || lbl.includes('read') || lbl.includes('print') || lbl.includes('sort') || lbl.includes('adds') || lbl.includes('solves') || lbl.includes('auditory') || lbl.includes('recogni'))
+          domRaw.acad = (domRaw.acad || 0) + raw;
+        else if (lbl.includes('self-help') || lbl.includes('self help') || lbl.includes('adaptive'))
+          domRaw.sh = (domRaw.sh || 0) + raw;
+        else if (lbl.includes('social') || lbl.includes('emotional'))
+          domRaw.se = (domRaw.se || 0) + raw;
+      });
+      // SH/SE also from shse questionnaire scores if present
+      if (state.shseScores) {
+        const shTotal = Object.values(state.shseScores).filter((_,i,a)=>i<17).reduce((s,v)=>s+(v||0),0);
+        const seTotal = Object.values(state.shseScores).filter((_,i,a)=>i>=17).reduce((s,v)=>s+(v||0),0);
+        if (shTotal > 0) domRaw.sh = shTotal;
+        if (seTotal > 0) domRaw.se = seTotal;
+      }
+    }
+
+    const compRows = ['phys','lang','acad','sh','se'].map(dk => {
+      const raw = domRaw[dk] ?? null;
+      const comp = (raw !== null) ? getBriganceComposite(cg.g, dk, raw, cg.bi) : null;
+      return { dk, label: domainMap[dk].label, raw, comp };
+    }).filter(r => r.comp !== null || r.raw !== null);
+
+    if (compRows.length > 0) {
+      const domColors = {phys:'var(--teal)',lang:'var(--navy)',acad:'var(--mauve)',sh:'#2e7d32',se:'#4527a0'};
+      html += `<div class="card" style="border:1.5px solid #dde2ef;">
+        <div class="card-title" style="color:var(--navy);">Domain Composite Standard Scores</div>
+        <div style="font-size:0.78rem;color:#6b7299;margin-bottom:14px;">
+          Mean=100, SD=15. Shaded band = ±1 SEM. Source: Brigance Screens III Technical Manual,
+          Appendix E &amp; F (Hawker Brownlow Education CA14300).
+        </div>`;
+
+      compRows.forEach(({dk, label, raw, comp}) => {
+        if (!comp) {
+          html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #eef0f5;font-size:0.84rem;">
+            <span style="font-weight:600;color:${domColors[dk]}">${label}</span>
+            <span style="color:#aaa;font-size:0.78rem;">Raw ${raw ?? '—'} — composite table pending photo</span>
+          </div>`;
+          return;
+        }
+        const {score, isBelow, sem, classification} = comp;
+        const scoreDisp = isBelow ? `&lt;${score}` : score;
+        const clsColor = isBelow || score < 85 ? '#c62828' : score >= 115 ? '#1565c0' : '#2e7d32';
+        const pct = Math.min(98, Math.max(2, (score/145)*100));
+        const pLo = Math.min(98, Math.max(2, ((score-sem)/145)*100));
+        const pHi = Math.min(98, Math.max(2, ((score+sem)/145)*100));
+        const barClr = isBelow || score < 85 ? '#c62828' : score >= 115 ? '#1565c0' : '#2e7d32';
+
+        html += `<div style="padding:10px 0;border-bottom:1px solid #eef0f5;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;flex-wrap:wrap;gap:4px;">
+            <span style="font-size:0.84rem;font-weight:700;color:${domColors[dk]}">${label}</span>
+            <span style="font-size:0.82rem;">
+              <strong style="color:${clsColor};font-size:1rem;">${scoreDisp}</strong>
+              <span style="color:#aaa;font-size:0.72rem;margin-left:3px;">±${sem} SEM</span>
+              <span style="color:${clsColor};font-size:0.76rem;margin-left:6px;">${isBelow ? 'Below published range' : classification}</span>
+              <span style="color:#bbb;font-size:0.72rem;margin-left:6px;">(raw ${raw})</span>
+            </span>
+          </div>
+          <div style="height:18px;background:#f0f2f8;border-radius:9px;position:relative;overflow:hidden;">
+            ${isBelow ? '' : `
+            <div style="position:absolute;left:${pLo}%;width:${pHi-pLo}%;height:100%;background:${barClr};opacity:0.2;border-radius:9px;"></div>
+            <div style="position:absolute;left:0;width:${pct}%;height:100%;background:${barClr};border-radius:9px;opacity:0.7;"></div>
+            <div style="position:absolute;left:68.97%;top:0;bottom:0;width:2px;background:rgba(0,0,0,0.12);"></div>
+            `}
+          </div>
+        </div>`;
+      });
+
+      html += `<div style="font-size:0.69rem;color:#aaa;margin-top:8px;">
+        ⚠ Composite scores pending: ${['5yo'].includes(cg.g) ? 'Academic/Cognitive (5yr)' : ['6yr'].includes(cg.g) ? 'Language &amp; Academic/Cognitive (6yr)' : 'none'}.
+        These domains show raw score only until Manual photos are supplied.
+      </div>` ;
+
+      // Remove the pending note if no pending
+      const noPending = !(['5yo','6yr'].includes(cg.g));
+      if (noPending) {
+        // will replace with clean close
+      }
+
+      html += `</div>`;
+    }
   }
 
   // ── AEDC 5-Domain Summary ─────────────────────────────────────────────────
