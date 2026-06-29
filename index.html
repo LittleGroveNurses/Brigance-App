@@ -3318,6 +3318,21 @@ function generateResults() {
       });
     }
 
+    // ── 5yr PHYS composite special case ──────────────────────────────────────
+    // The Technical Manual groups 5A (Personal Information — prints name) under
+    // Physical Development for the composite, because it measures fine motor
+    // handwriting execution, not knowledge. Max raw for phys composite = 18
+    // (3A gross motor 5pt + 4A visual motor 7.5pt + 5A personal info 6pt).
+    // 5A is coded Academic/Cognitive in BRIGANCE_ITEMS, so we add it explicitly.
+    if (cg.g === '5yo' && sd2) {
+      const item5A = sd2.domains.find(d => d.key === 'personal_info');
+      if (item5A) {
+        domRaw.phys = (domRaw.phys || 0) + (domainScores['personal_info'] || 0);
+        // Correspondingly remove it from acad so it isn't double-counted
+        domRaw.acad = Math.max(0, (domRaw.acad || 0) - (domainScores['personal_info'] || 0));
+      }
+    }
+
     // SH/SE: if the questionnaire has been completed, use those totals
     // state.shseScores = { sectionKey: { itemId: value } }
     // SHSE_DATA[shseKey].selfHelp.sections / .socialEmotional.sections
