@@ -1,0 +1,674 @@
+<!--
+  ════════════════════════════════════════════════════════════════════
+  BRIGANCE® Screens III — Two-Year-Old Data Entry Module
+  Little Grove · Child, Adolescent & Family Health · App 2
+
+  INTEGRATION:
+  1. Include this <style> block ONCE — all other modules share it.
+  2. Paste the HTML panels wherever the Brigance section should appear.
+  3. Paste the <script> block before </body>.
+  4. Call  BriganceInit2({ ageInDays: <number> })  once child DOB is known.
+  5. To retrieve results:
+       const r = BriganceGetResults2();
+       // returns { total, physRaw, langRaw, acadRaw, shRaw, seRaw,
+       //           physComp, langComp, acadComp, shComp, seComp,
+       //           bandLabel, classification }
+  6. Show panels via showBrgTab2(name) — 'entry' | 'shse' | 'results'
+  ════════════════════════════════════════════════════════════════════
+-->
+
+<!-- ═══════ STYLES — include ONCE for all Brigance modules ═══════ -->
+<style id="brigance-styles">
+/* ── Brigance module: tabs ── */
+.brg-tabs{display:flex;border-bottom:2px solid var(--border);background:#fff;overflow-x:auto}
+.brg-tab{flex:1;min-width:90px;padding:10px 6px;font-family:inherit;font-size:0.78rem;font-weight:700;
+  color:var(--navy);background:none;border:none;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+.brg-tab.active{color:var(--teal);border-bottom-color:var(--teal);background:var(--grey)}
+
+/* ── Band badge ── */
+.brg-band-badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:0.72rem;
+  font-weight:700;background:var(--teal);color:#fff;margin-left:6px}
+.brg-band-notice{padding:10px 14px;background:var(--near-bg);border-radius:8px;
+  font-size:0.82rem;color:var(--near);margin-bottom:12px;display:none}
+.brg-band-notice.show{display:block}
+
+/* ── Running totals ── */
+.brg-totals{background:#fff;border-radius:12px;padding:14px 16px;margin-bottom:12px;
+  box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.brg-totals h3{font-size:0.74rem;text-transform:uppercase;letter-spacing:.08em;color:var(--teal);margin-bottom:10px}
+.brg-big{text-align:center;font-size:2.2rem;font-weight:700;color:var(--navy);line-height:1}
+.brg-big small{font-size:0.9rem;color:#888;font-weight:400}
+.brg-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.brg-chip{border-radius:8px;padding:8px 10px;text-align:center}
+.brg-chip.phys{background:#e8f5f3}.brg-chip.lang{background:#e8eaf6}.brg-chip.acad{background:var(--pale)}
+.brg-chip .n{font-size:1.2rem;font-weight:700}
+.brg-chip.phys .n{color:var(--teal)}.brg-chip.lang .n{color:var(--navy)}.brg-chip.acad .n{color:var(--mauve)}
+.brg-chip .lbl{font-size:0.64rem;text-transform:uppercase;letter-spacing:.06em;color:#666}
+.brg-chip .mx{font-size:0.66rem;color:#aaa}
+
+/* ── Assessment blocks ── */
+.brg-asmt{background:#fff;border-radius:12px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden}
+.brg-asmt-hdr{display:flex;align-items:center;gap:9px;padding:11px 14px;border-bottom:1px solid var(--border)}
+.brg-code{font-size:0.74rem;font-weight:700;color:#fff;padding:3px 8px;border-radius:5px;min-width:28px;text-align:center}
+.brg-code.phys{background:var(--teal)}.brg-code.lang{background:var(--navy)}.brg-code.acad{background:var(--mauve)}
+.brg-asmt-hdr h4{flex:1;font-size:0.88rem;font-weight:700}
+.brg-dtag{font-size:0.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+  padding:2px 7px;border-radius:10px;white-space:nowrap}
+.brg-dtag.phys{background:#e8f5f3;color:var(--teal)}.brg-dtag.lang{background:#e8eaf6;color:var(--navy)}
+.brg-dtag.acad{background:var(--pale);color:var(--mauve)}
+.brg-schip{font-size:0.85rem;font-weight:700;color:var(--teal);min-width:46px;text-align:right}
+
+/* ── Item rows ── */
+.brg-items{display:grid;grid-template-columns:1fr 1fr}
+.brg-item{display:flex;align-items:center;gap:8px;padding:9px 14px;cursor:pointer;
+  border-bottom:1px solid var(--border);transition:background .15s}
+.brg-item:last-child{border-bottom:none}
+.brg-item:nth-child(even){background:#fafbfd}
+.brg-item:hover{background:#f0f7f5}
+.brg-item.on{background:#e8f5e9!important}
+.brg-chk{width:20px;height:20px;border:2px solid var(--border);border-radius:5px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;transition:all .15s}
+.brg-item.on .brg-chk{background:var(--green);border-color:var(--green)}
+.brg-chk svg{display:none}.brg-item.on .brg-chk svg{display:block}
+.brg-itxt{font-size:0.82rem;line-height:1.3;flex:1}
+.brg-ipts{font-size:0.68rem;color:#aaa;font-weight:700;white-space:nowrap}
+.brg-foot{display:flex;justify-content:space-between;padding:7px 14px;background:var(--grey);
+  border-top:1px solid var(--border);font-size:0.71rem;color:#888}
+.brg-item-note{font-size:0.72rem;color:#888;padding:5px 14px 0;font-style:italic}
+
+/* ── Variable-point items ── */
+.brg-var-item{padding:10px 14px;border-bottom:1px solid var(--border)}
+.brg-var-item:last-child{border-bottom:none}
+.brg-var-item:nth-child(even){background:#fafbfd}
+.brg-var-q{font-size:0.82rem;line-height:1.33;margin-bottom:6px}
+.brg-var-opts{display:flex;flex-wrap:wrap;gap:5px}
+.brg-var-opt{padding:5px 11px;border:1.5px solid var(--border);border-radius:20px;
+  font-family:inherit;font-size:0.74rem;cursor:pointer;background:#fff;color:#666;
+  transition:all .15s;white-space:nowrap}
+.brg-var-opt:hover{border-color:var(--teal);color:var(--teal)}
+.brg-var-opt.sel{background:#e8f5e9;border-color:#81c784;color:#2e7d32}
+
+/* ── SH/SE ── */
+.brg-code.sh{background:#2e7d32}.brg-code.se{background:#4527a0}
+.brg-dtag.sh{background:#e8f5e9;color:#2e7d32}.brg-dtag.se{background:#ede7f6;color:#4527a0}
+.brg-chip.sh{background:#e8f5e9}.brg-chip.sh .n{color:#2e7d32}
+.brg-chip.se{background:#ede7f6}.brg-chip.se .n{color:#4527a0}
+.brg-shse-totals{background:#fff;border-radius:12px;padding:14px 16px;margin-bottom:12px;
+  box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.brg-shse-totals h3{font-size:0.74rem;text-transform:uppercase;letter-spacing:.08em;color:var(--teal);margin-bottom:10px}
+.brg-shse-chips{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.brg-scard{border-radius:8px;padding:10px 12px;text-align:center}
+.brg-scard.sh{background:#e8f5e9}.brg-scard.se{background:#ede7f6}
+.brg-sraw{font-size:1.15rem;font-weight:700}
+.brg-scard.sh .brg-sraw{color:#2e7d32}.brg-scard.se .brg-sraw{color:#4527a0}
+.brg-scard h4{font-size:0.64rem;text-transform:uppercase;letter-spacing:.06em;color:#666;margin-bottom:3px}
+.brg-scomp{font-size:0.82rem;font-weight:700;margin-top:4px;min-height:20px;color:var(--navy)}
+.brg-ssem{font-size:0.68rem;color:#888}
+.brg-sh-item{padding:10px 14px;border-bottom:1px solid var(--border)}
+.brg-sh-item:last-child{border-bottom:none}
+.brg-sh-item:nth-child(even){background:#fafbfd}
+.brg-sh-q{font-size:0.82rem;line-height:1.33;margin-bottom:7px;color:#2b2b2b}
+.brg-sh-note{font-size:0.69rem;color:#888;margin-bottom:6px}
+.brg-opts{display:flex;flex-wrap:wrap;gap:5px}
+.brg-opt{padding:5px 11px;border:1.5px solid var(--border);border-radius:20px;
+  font-family:inherit;font-size:0.74rem;cursor:pointer;background:#fff;color:#666;
+  transition:all .15s;white-space:nowrap}
+.brg-opt:hover{border-color:var(--teal);color:var(--teal)}
+.brg-opt.sel-z{background:#ffebee;border-color:#ef9a9a;color:#c62828}
+.brg-opt.sel-p{background:#e8f5e9;border-color:#81c784;color:#2e7d32}
+
+/* ── Results ── */
+.brg-result-badge{display:inline-block;padding:4px 14px;border-radius:20px;font-size:0.82rem;font-weight:700}
+.brg-result-badge.delay{background:var(--below-bg);color:var(--below)}
+.brg-result-badge.typical{background:var(--above-bg);color:var(--above)}
+.brg-result-badge.gifted{background:#e8eaf6;color:var(--navy)}
+.brg-ctrack{height:40px;background:#eee;border-radius:8px;position:relative;overflow:hidden;margin:8px 0 4px}
+.brg-cz{position:absolute;top:0;bottom:0}
+.brg-cz.d{background:#ffebee}.brg-cz.n{background:#e8f5e9}.brg-cz.g{background:#e8eaf6}
+.brg-cmark{position:absolute;top:0;bottom:0;width:2px;background:rgba(0,0,0,.2)}
+.brg-clbl{position:absolute;top:3px;font-size:0.6rem;font-weight:700;color:#555;padding-left:3px;white-space:nowrap}
+.brg-needle{position:absolute;top:5px;bottom:5px;width:4px;border-radius:2px;background:var(--navy);transform:translateX(-50%)}
+.brg-needle::before{content:attr(data-v);position:absolute;top:-17px;left:50%;transform:translateX(-50%);
+  font-size:0.7rem;font-weight:700;color:var(--navy);white-space:nowrap}
+.brg-dbar{margin-bottom:9px}
+.brg-dbar-lbl{display:flex;justify-content:space-between;margin-bottom:3px;font-size:0.8rem}
+.brg-dbar-lbl .dl{font-weight:700}
+.brg-dbar-lbl .dc{color:#888;font-size:0.72rem;margin-left:4px}
+.brg-dbar-track{height:20px;background:#eee;border-radius:10px;overflow:hidden;position:relative}
+.brg-fill{height:100%;border-radius:10px;transition:width .6s}
+.brg-fill.below{background:var(--mauve)}
+.brg-fill.typical{background:var(--green)}
+.brg-fill.above{background:var(--navy)}
+.brg-fill.no-data{background:#ccc}
+.brg-sem-band{position:absolute;top:0;bottom:0;border-radius:10px;opacity:.25}
+.brg-sem-band.below{background:var(--mauve)}
+.brg-sem-band.typical{background:var(--green)}
+.brg-sem-band.above{background:var(--navy)}
+.brg-avg{position:absolute;left:68.97%;top:0;bottom:0;width:2px;background:rgba(0,0,0,.15)}
+.brg-legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px;font-size:0.74rem}
+.brg-legend-item{display:flex;align-items:center;gap:5px}
+.brg-legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.brg-legend-dot.below{background:var(--mauve)}
+.brg-legend-dot.typical{background:var(--green)}
+.brg-legend-dot.above{background:var(--navy)}
+
+@media(max-width:540px){
+  .brg-items,.brg-chips{grid-template-columns:1fr}
+}
+</style>
+
+<!-- ═══════ HTML panels ═══════ -->
+<div id="brg-2-panel-entry" class="brg-panel" style="display:none">
+
+  <div class="brg-band-notice" id="brg-2-band-notice">
+    ⚠ Age not yet calculated — enter child's DOB and screening date to determine the age band and enable composite scoring.
+  </div>
+
+  <div class="brg-totals">
+    <h3>Running Score — Two-Year-Old Data Sheet</h3>
+    <div class="brg-big"><span id="brg-2-total">0</span><small> / 100</small></div>
+    <div class="brg-chips">
+      <div class="brg-chip phys"><div class="n" id="brg-2-p">0</div><div class="lbl">Physical</div><div class="mx">/ 28</div></div>
+      <div class="brg-chip lang"><div class="n" id="brg-2-l">0</div><div class="lbl">Language</div><div class="mx">/ 33</div></div>
+      <div class="brg-chip acad"><div class="n" id="brg-2-a">0</div><div class="lbl">Academic / Cog</div><div class="mx">/ 39</div></div>
+    </div>
+  </div>
+
+  <div id="brg-2-asmts"></div>
+</div>
+
+<div id="brg-2-panel-shse" class="brg-panel" style="display:none">
+  <div class="brg-shse-totals">
+    <h3>Running Score — Self-help &amp; Social-Emotional Scales</h3>
+    <div class="brg-shse-chips">
+      <div class="brg-scard sh">
+        <h4>Self-help Skills</h4>
+        <div class="brg-sraw"><span id="brg-2-sh-raw">0</span> / 6</div>
+        <div class="brg-scomp" id="brg-2-sh-comp">—</div>
+        <div class="brg-ssem" id="brg-2-sh-sem"></div>
+      </div>
+      <div class="brg-scard se">
+        <h4>Social-Emotional</h4>
+        <div class="brg-sraw"><span id="brg-2-se-raw">0</span> / 12</div>
+        <div class="brg-scomp" id="brg-2-se-comp">—</div>
+        <div class="brg-ssem" id="brg-2-se-sem"></div>
+      </div>
+    </div>
+  </div>
+  <div id="brg-2-shse-items"></div>
+</div>
+
+<div id="brg-2-panel-results" class="brg-panel" style="display:none">
+  <div id="brg-2-results-body">
+    <p style="color:#888;font-size:0.85rem;text-align:center;padding:20px">Complete the Data Sheet and Self-help &amp; SE sections, then tap Brigance Results.</p>
+  </div>
+</div>
+
+<script id="brigance-2yr-module">
+(function(){
+// ══════════════════════════════════════════════════════════
+// TWO-YEAR-OLD ASSESSMENT DATA
+// Source: BRIGANCE® Screens III © 2014 Curriculum Associates
+// Hawker Brownlow Education CA14300
+// ══════════════════════════════════════════════════════════
+
+// Standard items (uniform points per item)
+const ASMTS2_STD=[
+  {code:'1C',domain:'lang',domainLabel:'Language Development',title:'Identifies Parts of the Body',pts:1.5,max:9,
+   note:'Points to: ears, head, teeth, legs, fingers, arms',
+   items:['ears','head','teeth','legs','fingers','arms']},
+  {code:'2C',domain:'lang',domainLabel:'Language Development',title:'Identifies Pictures by Naming',pts:2,max:12,
+   note:'Points to: cat, dog, apple, key, car, cup',
+   items:['cat','dog','apple','key','car','cup']},
+  {code:'3C',domain:'acad',domainLabel:'Academic / Cognitive',title:'Knows Uses of Objects',pts:4,max:12,
+   note:'Knows use of: car, bed, chair',
+   items:['car','bed','chair']},
+  {code:'4C',domain:'acad',domainLabel:'Academic / Cognitive',title:'Repeats Sentences',pts:3,max:6,
+   note:'Repeats sentence of 1, 2, or 3+ syllables',
+   items:['1 syllable','2 syllables','3–4 syllables']},
+  {code:'5C',domain:'phys',domainLabel:'Physical Development',title:'Gross Motor Skills',pts:1,max:10,
+   items:[
+     'Jumps off floor with both feet',
+     'Walks backward four steps',
+     'Stands on one foot for one second',
+     'Walks on tiptoe three steps',
+   ]},
+  {code:'6C',domain:'acad',domainLabel:'Academic / Cognitive',title:'Understands Concepts of Number and Size',pts:2.5,max:10,
+   note:'Understands: just one, one more, big, little',
+   items:['just one','one more','big','little']},
+  {code:'8C',domain:'phys',domainLabel:'Physical Development',title:'Builds Tower with Blocks',pts:2.5,max:10,
+   note:'Builds tower with: two, three, four, five blocks',
+   items:['two blocks','three blocks','four blocks','five blocks']},
+  {code:'9C',domain:'acad',domainLabel:'Academic / Cognitive',title:'Matches Colours',pts:1.5,max:7.5,
+   note:'Matches: red, blue, green, yellow, orange',
+   items:['red','blue','green','yellow','orange']},
+];
+
+// Variable-point items (7C Visual Motor, 10C Verbal Fluency)
+const ASMTS2_VAR=[
+  {code:'7C',domain:'phys',domainLabel:'Physical Development',title:'Visual Motor Skills',max:8,
+   items:[
+     {label:'Scribbles — not purposeful / well-controlled',pts:0},
+     {label:'Scribbles — somewhat purposeful',pts:1},
+     {label:'Scribbles — purposeful and well-controlled',pts:2},
+     {label:'Draws somewhat recognisable picture meaningful to child',pts:1},
+     {label:'Holds crayon with fingers, uses one hand consistently',pts:2},
+   ]},
+  {code:'10C',domain:'lang',domainLabel:'Language Development',title:'Verbal Fluency and Articulation',max:6,
+   items:[
+     {label:'Uses two-word phrases in which words relate in combination',pts:3},
+     {label:'Uses three-word phrases in which words relate in combination',pts:3},
+   ]},
+];
+
+// SH/SE — 2-Year-Old form (CA14294)
+const SHSE2={
+  sh:{label:'SELF-HELP SKILLS',maxScore:6,sections:[
+    {label:'A. Eating Skills',max:3,items:[
+      {id:'2sh1',q:'Does _____ ask for food when he/she is hungry?',
+       opts:[{v:0,l:'Rarely/No'},{v:0,l:'Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'2sh2',q:'Can _____ hold a cup in one hand and drink from it without much spilling?',
+       opts:[{v:0,l:'Rarely/No'},{v:0,l:'Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'2sh3',q:'Does _____ use a spoon and place it in mouth without turning upside down and without spilling a lot?',
+       opts:[{v:0,l:'Rarely/No'},{v:0,l:'Sometimes'},{v:1,l:'Most of the time'}]},
+    ]},
+    {label:'B. Dressing Skills',max:2,items:[
+      {id:'2sh4',q:'Does _____ take off coat, shirt or pants on own if the article is left unbuttoned or unzipped?',
+       opts:[{v:0,l:'Rarely/No'},{v:0,l:'Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'2sh5',q:'Does _____ put on coat, shirt or pants without help if the article is left unbuttoned or unzipped?',
+       opts:[{v:0,l:'Rarely/No'},{v:0,l:'Sometimes'},{v:1,l:'Most of the time'}]},
+    ]},
+    {label:'C. Toileting Skills',max:1,items:[
+      {id:'2sh6',q:'Does _____ tell you when he/she needs to go to the bathroom?',
+       opts:[{v:0,l:'Rarely/No'},{v:0,l:'Sometimes'},{v:1,l:'Most of the time'}]},
+    ]},
+  ]},
+  se:{label:'SOCIAL AND EMOTIONAL SKILLS',maxScore:12,sections:[
+    {label:'D. Relationships with Adults',max:3,items:[
+      {id:'2se1',q:'Does _____ show a positive response (e.g. smiling, laughter) when you make positive comments about what he/she is doing?',
+       opts:[{v:0,l:'Rarely/No'},{v:0,l:'Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'2se2',q:'Does _____ talk or try to talk with you about things that happened at home?',
+       opts:[{v:0,l:'Rarely/No'},{v:0,l:'Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'2se3',q:'Does _____ seek you out to show you something he/she has made or found?',
+       opts:[{v:0,l:'Rarely/No'},{v:0,l:'Sometimes'},{v:1,l:'Most of the time'}]},
+    ]},
+    {label:'E. Play and Relationships with Peers',max:3,items:[
+      {id:'2se4',q:'Does _____ play alongside other children, doing the same activity but not necessarily interacting?',
+       opts:[{v:0,l:'Rarely/No'},{v:0,l:'Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'2se5',q:'Does _____ play cooperatively with other children in the same activity?',
+       opts:[{v:0,l:'Rarely/No'},{v:0,l:'Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'2se6',q:'Does _____ share toys or materials with other children without being asked to do so?',
+       opts:[{v:0,l:'Rarely/No'},{v:0,l:'Sometimes'},{v:1,l:'Most of the time'}]},
+    ]},
+    {label:'F. Motivation and Self-Confidence',max:3,items:[
+      {id:'2se7',q:'Does _____ begin activities on own without constant adult direction or supervision?',
+       opts:[{v:0,l:'Rarely/No'},{v:0,l:'Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'2se8',q:'Does _____ stay with an activity for at least five minutes?',
+       opts:[{v:0,l:'Rarely/No'},{v:0,l:'Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'2se9',q:'Does _____ try new activities without excessive hesitation or clinging to adult?',
+       opts:[{v:0,l:'Rarely/No'},{v:0,l:'Sometimes'},{v:1,l:'Most of the time'}]},
+    ]},
+    {label:'G. Prosocial Skills and Behaviours',max:3,items:[
+      {id:'2se10',q:'Does _____ wait for a short time for something he/she wants?',
+       opts:[{v:0,l:'Rarely/No'},{v:0,l:'Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'2se11',q:'Does _____ express needs or wants using words rather than tantrums or crying most of the time?',
+       opts:[{v:0,l:'Rarely/No'},{v:0,l:'Sometimes'},{v:1,l:'Most of the time'}]},
+      {id:'2se12',q:'Does _____ respond to adult requests to stop a behaviour most of the time?',
+       opts:[{v:0,l:'Rarely/No'},{v:0,l:'Sometimes'},{v:1,l:'Most of the time'}]},
+    ]},
+  ]},
+};
+
+// ── Cutoffs (Table 3-2 — Hawker Brownlow CA14300) ──
+const BANDS2={
+  '2yo_0':{label:'2:0–2:2',min:730, max:820, delay:47,gifted:76},
+  '2yo_3':{label:'2:3–2:5',min:821, max:912, delay:54,gifted:85},
+  '2yo_6':{label:'2:6–2:8',min:913, max:1004,delay:62,gifted:91},
+  '2yo_9':{label:'2:9–2:11',min:1005,max:1094,delay:75,gifted:95},
+};
+const BORDER2=['2yo_0','2yo_3','2yo_6','2yo_9'];
+
+// ── Domain composite tables (Appendix E & F — Hawker Brownlow CA14300) ──
+const C2={
+  phys:{sem:5,d:[
+    [68,68,68],[72,71,70],[76,74,73],[79,77,75],[82,79,77],[84,81,79],
+    [86,83,81],[88,85,83],[90,87,84],[92,88,86],[93,90,88],[95,91,89],
+    [96,93,91],[98,94,92],[99,96,93],[101,97,95],[102,98,96],[104,100,98],
+    [105,101,99],[107,103,101],[108,104,102],[110,105,104],[111,107,105],
+    [113,108,107],[114,110,108],[116,111,110],[117,113,111],[119,114,113],
+    [120,116,114],[122,117,116],[123,119,117],
+  ]},
+  lang:{sem:4,d:[
+    [68,68,68],[73,71,70],[77,74,73],[80,77,75],[83,79,77],[85,81,79],
+    [87,83,81],[89,85,83],[90,86,84],[92,88,86],[93,89,87],[95,91,89],
+    [96,92,90],[98,94,92],[99,95,93],[101,97,95],[102,98,96],[104,99,97],
+    [105,101,99],[107,102,100],[108,104,102],[110,105,103],[111,107,105],
+    [113,108,106],[114,110,108],[116,111,109],[117,113,111],[119,114,112],
+    [120,116,114],[122,117,115],[123,119,117],[125,120,118],[126,122,120],
+    [128,123,121],[129,125,123],
+  ]},
+  acad:{sem:5,d:[
+    [68,68,68],[72,70,69],[76,73,72],[79,76,74],[82,78,77],[84,80,79],
+    [86,82,81],[88,84,82],[89,85,84],[91,87,85],[92,88,87],[94,90,88],
+    [95,91,90],[97,93,91],[98,94,92],[100,96,94],[101,97,95],[103,99,97],
+    [104,100,98],[106,101,100],[107,103,101],[109,104,103],[110,106,104],
+    [112,107,106],[113,109,107],[115,110,109],[116,112,110],[118,113,112],
+    [119,115,113],[121,116,115],[122,118,116],[124,119,118],[125,121,119],
+    [127,122,121],[128,124,122],[130,125,124],[131,127,125],[133,128,126],
+    [135,130,128],[136,131,129],
+  ]},
+  sh:{sem:5,d:[
+    [68,68,68],[79,77,74],[91,88,85],[103,98,95],[115,110,107],[127,122,118],['>130','>130',130],
+  ]},
+  se:{sem:4,d:[
+    [68,68,68],[73,71,70],[79,77,75],[84,82,80],[89,87,85],[94,92,90],
+    [100,97,95],[105,102,100],[110,107,105],[115,112,110],[121,118,116],[126,123,121],[130,128,126],
+  ]},
+};
+
+// ══════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════
+const BS2={checked:{},var:{},shse:{},ageInDays:null,bandKey:null};
+ASMTS2_STD.forEach(a=>{BS2.checked[a.code]=new Set();});
+ASMTS2_VAR.forEach(a=>{BS2.var[a.code]=null;});
+[...SHSE2.sh.sections,...SHSE2.se.sections].forEach(s=>s.items.forEach(i=>{BS2.shse[i.id]=null;}));
+
+// ══════════════════════════════════════════════════════════
+// PUBLIC API
+// ══════════════════════════════════════════════════════════
+window.BriganceInit2=function({ageInDays}){
+  BS2.ageInDays=ageInDays; BS2.bandKey=null;
+  for(const[k,v] of Object.entries(BANDS2))
+    if(ageInDays>=v.min&&ageInDays<=v.max){BS2.bandKey=k;break;}
+  const notice=document.getElementById('brg-2-band-notice');
+  if(notice){BS2.bandKey?notice.classList.remove('show'):notice.classList.add('show');}
+  _update2SHSE();
+};
+
+window.BriganceGetResults2=function(){
+  const r=_calc2(); const bi=_bi2();
+  return{
+    total:r.tot, physRaw:r.p, langRaw:r.l, acadRaw:r.a, shRaw:r.sh, seRaw:r.se,
+    physComp:_lk2(C2.phys,r.p,bi), langComp:_lk2(C2.lang,r.l,bi),
+    acadComp:_lk2(C2.acad,r.a,bi), shComp:_lk2(C2.sh,r.sh,bi), seComp:_lk2(C2.se,r.se,bi),
+    bandLabel:BS2.bandKey?BANDS2[BS2.bandKey].label:'—',
+    classification:_cls2(r.tot),
+  };
+};
+
+window.showBrgTab2=function(name){
+  document.querySelectorAll('[id^="brg-2-panel-"]').forEach(p=>p.style.display='none');
+  const panel=document.getElementById('brg-2-panel-'+name);
+  if(panel)panel.style.display='block';
+  if(name==='results')_render2Results();
+};
+
+// ══════════════════════════════════════════════════════════
+// INTERNAL
+// ══════════════════════════════════════════════════════════
+function _bi2(){return BORDER2.indexOf(BS2.bandKey);}
+function _lk2(tbl,raw,bi){
+  const ri=Math.round(raw);
+  if(bi<0||!tbl.d[ri])return null;return tbl.d[ri]?.[bi]??null;
+}
+function _fmt2(v){if(v===null)return'—';if(typeof v==='string')return v;return v.toString();}
+function _classify2(v){
+  if(v===null||typeof v==='string')return'';
+  if(v>=110)return'Above Average';if(v>=90)return'Average';
+  if(v>=70)return'Low Average';return'Below Average';
+}
+function _cls2(tot){
+  if(!BS2.bandKey)return'typical';
+  const b=BANDS2[BS2.bandKey];
+  if(tot<b.delay)return'delay';if(tot>b.gifted)return'gifted';return'typical';
+}
+function _clsLabel2(c){return{delay:'Potential Delay',typical:'Typical Development',gifted:'Potential Giftedness'}[c];}
+
+function _calc2(){
+  let tot=0,p=0,l=0,a=0;
+  ASMTS2_STD.forEach(asmt=>{
+    const pts=BS2.checked[asmt.code].size*asmt.pts; tot+=pts;
+    if(asmt.domain==='phys')p+=pts;
+    if(asmt.domain==='lang')l+=pts;
+    if(asmt.domain==='acad')a+=pts;
+  });
+  ASMTS2_VAR.forEach(asmt=>{
+    const pts=BS2.var[asmt.code]??0; tot+=pts;
+    if(asmt.domain==='phys')p+=pts;
+    if(asmt.domain==='lang')l+=pts;
+  });
+  const sh=[...SHSE2.sh.sections].flatMap(s=>s.items).reduce((s,i)=>s+(BS2.shse[i.id]??0),0);
+  const se=[...SHSE2.se.sections].flatMap(s=>s.items).reduce((s,i)=>s+(BS2.shse[i.id]??0),0);
+  return{tot:Math.round(tot*10)/10, p:Math.round(p*10)/10, l:Math.round(l*10)/10, a:Math.round(a*10)/10, sh, se};
+}
+
+function _buildAsmts2(){
+  const c=document.getElementById('brg-2-asmts');if(!c)return;
+  c.innerHTML='';
+
+  // Interleave std and var items in code order
+  const allCodes=['1C','2C','3C','4C','5C','6C','7C','8C','9C','10C'];
+  allCodes.forEach(code=>{
+    const std=ASMTS2_STD.find(a=>a.code===code);
+    const vr=ASMTS2_VAR.find(a=>a.code===code);
+    if(std) _buildStdAsmt2(c,std);
+    if(vr)  _buildVarAsmt2(c,vr);
+  });
+}
+
+function _buildStdAsmt2(c,a){
+  const d=document.createElement('div');d.className='brg-asmt';d.id='brg-2-asmt-'+a.code;
+  d.innerHTML=`<div class="brg-asmt-hdr">
+      <span class="brg-code ${a.domain}">${a.code}</span>
+      <h4>${a.title}</h4>
+      <span class="brg-dtag ${a.domain}">${a.domainLabel}</span>
+      <span class="brg-schip" id="brg-2-sc-${a.code}">0/${a.max}</span>
+    </div>
+    ${a.note?`<div class="brg-item-note">ℹ ${a.note}</div>`:''}
+    <div class="brg-items">${a.items.map((it,i)=>`
+      <div class="brg-item" onclick="_bToggle2('${a.code}',${i},this)">
+        <div class="brg-chk"><svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+          <path d="M1.5 5L4.5 8L10.5 1.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <span class="brg-itxt">${it}</span>
+        <span class="brg-ipts">${a.pts}pt</span>
+      </div>`).join('')}
+    </div>
+    <div class="brg-foot"><span>${a.pts} points per item · max ${a.max}</span></div>`;
+  c.appendChild(d);
+}
+
+function _buildVarAsmt2(c,a){
+  const d=document.createElement('div');d.className='brg-asmt';d.id='brg-2-asmt-'+a.code;
+  d.innerHTML=`<div class="brg-asmt-hdr">
+      <span class="brg-code ${a.domain}">${a.code}</span>
+      <h4>${a.title}</h4>
+      <span class="brg-dtag ${a.domain}">${a.domainLabel}</span>
+      <span class="brg-schip" id="brg-2-sc-${a.code}">0/${a.max}</span>
+    </div>
+    <div>${a.items.map((it,i)=>`
+      <div class="brg-var-item">
+        <div class="brg-var-opts">
+          <button class="brg-var-opt${BS2.var[a.code]===it.pts?' sel':''}"
+            onclick="_bVar2('${a.code}',${it.pts},this)">
+            ${it.label} <strong>(${it.pts}pt)</strong>
+          </button>
+        </div>
+      </div>`).join('')}
+    </div>
+    <div class="brg-foot"><span>Select one option · max ${a.max}</span></div>`;
+  c.appendChild(d);
+}
+
+window._bToggle2=function(code,idx,row){
+  const s=BS2.checked[code];
+  if(s.has(idx)){s.delete(idx);row.classList.remove('on');}else{s.add(idx);row.classList.add('on');}
+  _recalc2();
+};
+
+window._bVar2=function(code,pts,btn){
+  BS2.var[code]=pts;
+  const asmt=document.getElementById('brg-2-asmt-'+code);
+  asmt.querySelectorAll('.brg-var-opt').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel');
+  _recalc2();
+};
+
+function _recalc2(){
+  const r=_calc2();
+  const el=id=>document.getElementById(id);
+  const fmt=v=>v%1?v.toFixed(1):v;
+  if(el('brg-2-total'))el('brg-2-total').textContent=fmt(r.tot);
+  if(el('brg-2-p'))el('brg-2-p').textContent=fmt(r.p);
+  if(el('brg-2-l'))el('brg-2-l').textContent=fmt(r.l);
+  if(el('brg-2-a'))el('brg-2-a').textContent=fmt(r.a);
+  // Update std item subtotals
+  ASMTS2_STD.forEach(a=>{
+    const pts=BS2.checked[a.code].size*a.pts;
+    const ch=el('brg-2-sc-'+a.code);
+    if(ch)ch.textContent=(pts%1?pts.toFixed(1):pts)+'/'+a.max;
+  });
+  // Update var item subtotals
+  ASMTS2_VAR.forEach(a=>{
+    const pts=BS2.var[a.code]??0;
+    const ch=el('brg-2-sc-'+a.code);
+    if(ch)ch.textContent=pts+'/'+a.max;
+  });
+}
+
+function _buildSHSE2(){
+  const c=document.getElementById('brg-2-shse-items');if(!c)return;
+  c.innerHTML='';
+  ['sh','se'].forEach(scale=>{
+    const sd=SHSE2[scale];
+    const lbl=document.createElement('div');
+    lbl.style.cssText='font-size:0.72rem;text-transform:uppercase;letter-spacing:.09em;font-weight:700;'
+      +'color:'+(scale==='sh'?'#2e7d32':'#4527a0')+';padding:10px 4px 4px';
+    lbl.textContent=sd.label; c.appendChild(lbl);
+    sd.sections.forEach((sec,si)=>{
+      const blk=document.createElement('div'); blk.className='brg-asmt';
+      const secId='brg-2-sec-'+scale+si;
+      const letter=sec.label.match(/[A-G]/)?.[0]||'';
+      let h=`<div class="brg-asmt-hdr">
+        <span class="brg-code ${scale}">${letter}</span>
+        <h4>${sec.label.replace(/^[A-G]\.\s*/,'')}</h4>
+        <span class="brg-dtag ${scale}">${scale==='sh'?'Self-help':'Social-Emotional'}</span>
+        <span class="brg-schip" id="${secId}">0/${sec.max}</span>
+      </div>`;
+      sec.items.forEach(it=>{
+        h+=`<div class="brg-sh-item">
+          <div class="brg-sh-q">${it.q}</div>
+          <div class="brg-opts" id="brg-2-opts-${it.id}">
+            ${it.opts.map(o=>`<button class="brg-opt" onclick="_bOpt2('${it.id}',${o.v},this)">${o.l}</button>`).join('')}
+          </div>
+        </div>`;
+      });
+      h+=`<div class="brg-foot"><span>Section max ${sec.max}</span></div>`;
+      blk.innerHTML=h; c.appendChild(blk);
+    });
+  });
+}
+
+window._bOpt2=function(id,val,btn){
+  BS2.shse[id]=val;
+  document.getElementById('brg-2-opts-'+id).querySelectorAll('.brg-opt')
+    .forEach(b=>b.classList.remove('sel-z','sel-p'));
+  btn.classList.add(val===0?'sel-z':'sel-p');
+  _update2SHSE();
+};
+
+function _update2SHSE(){
+  const r=_calc2(); const bi=_bi2();
+  const el=id=>document.getElementById(id);
+  if(el('brg-2-sh-raw'))el('brg-2-sh-raw').textContent=r.sh;
+  if(el('brg-2-se-raw'))el('brg-2-se-raw').textContent=r.se;
+  if(bi>=0){
+    const shC=_lk2(C2.sh,r.sh,bi),seC=_lk2(C2.se,r.se,bi);
+    if(el('brg-2-sh-comp'))el('brg-2-sh-comp').innerHTML=`<span style="color:var(--navy)">${_fmt2(shC)}</span> <span style="color:#888;font-size:0.75rem">${_classify2(typeof shC==='number'?shC:null)}</span>`;
+    if(el('brg-2-se-comp'))el('brg-2-se-comp').innerHTML=`<span style="color:var(--navy)">${_fmt2(seC)}</span> <span style="color:#888;font-size:0.75rem">${_classify2(typeof seC==='number'?seC:null)}</span>`;
+    if(el('brg-2-sh-sem')&&typeof shC==='number')el('brg-2-sh-sem').textContent=`SEM ±${C2.sh.sem} → ${shC-C2.sh.sem}–${shC+C2.sh.sem}`;
+    if(el('brg-2-se-sem')&&typeof seC==='number')el('brg-2-se-sem').textContent=`SEM ±${C2.se.sem} → ${seC-C2.se.sem}–${seC+C2.se.sem}`;
+  }
+  ['sh','se'].forEach(scale=>{
+    SHSE2[scale].sections.forEach((sec,si)=>{
+      const t=sec.items.reduce((s,i)=>s+(BS2.shse[i.id]??0),0);
+      const el2=document.getElementById('brg-2-sec-'+scale+si);
+      if(el2)el2.textContent=t+'/'+sec.max;
+    });
+  });
+}
+
+function _render2Results(){
+  const r=_calc2(); const bi=_bi2();
+  const band=BS2.bandKey?BANDS2[BS2.bandKey]:null;
+  const cls=_cls2(r.tot);
+  const pC=_lk2(C2.phys,r.p,bi),lC=_lk2(C2.lang,r.l,bi),
+        aC=_lk2(C2.acad,r.a,bi),shC=_lk2(C2.sh,r.sh,bi),seC=_lk2(C2.se,r.se,bi);
+
+  document.getElementById('brg-2-results-body').innerHTML=`
+    <h3 style="font-size:0.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--teal);margin-bottom:10px">BRIGANCE® Screens III — Two-Year-Old</h3>
+    <div style="margin-bottom:12px">
+      <span class="brg-result-badge ${cls}">${_clsLabel2(cls)}</span>
+      <strong style="font-size:1.3rem;margin-left:8px">${r.tot}</strong>
+      <span style="color:#888"> / 100</span>
+      ${band?`<span style="font-size:0.72rem;color:#888;margin-left:6px">Band ${band.label}: delay &lt;${band.delay} · gifted &gt;${band.gifted}</span>`:''}
+    </div>
+    <div class="brg-ctrack">
+      ${band?_cutoffBar2(r.tot,band):'<span style="padding:10px;font-size:0.78rem;color:#888">Enter child\'s DOB to display cutoffs</span>'}
+    </div>
+    <h4 style="font-size:0.76rem;text-transform:uppercase;letter-spacing:.08em;color:var(--teal);margin:14px 0 8px">Results by Domain</h4>
+    <div class="brg-legend">
+      <div class="brg-legend-item"><div class="brg-legend-dot below"></div>Below Average (&lt;85)</div>
+      <div class="brg-legend-item"><div class="brg-legend-dot typical"></div>Average (85–115)</div>
+      <div class="brg-legend-item"><div class="brg-legend-dot above"></div>Above Average (&gt;115)</div>
+    </div>
+    ${_dbar2('Physical Development','phys',r.p,pC,C2.phys.sem,'raw '+r.p+'/28')}
+    ${_dbar2('Language Development','lang',r.l,lC,C2.lang.sem,'raw '+r.l+'/33')}
+    ${_dbar2('Academic / Cognitive','acad',r.a,aC,C2.acad.sem,'raw '+r.a+'/39')}
+    ${_dbar2('Self-help Skills','sh',r.sh,shC,C2.sh.sem,'raw '+r.sh+'/6')}
+    ${_dbar2('Social-Emotional Skills','se',r.se,seC,C2.se.sem,'raw '+r.se+'/12')}
+    <p style="font-size:0.69rem;color:#aaa;margin-top:10px">
+      Composite scores: mean=100, SD=15 · Shaded band = ±1 SEM
+    </p>`;
+}
+
+function _cutoffBar2(score,band){
+  const p=v=>Math.min(97,Math.max(3,(v/100)*100));
+  const sp=p(score),dp=p(band.delay),gp=p(band.gifted);
+  return`<div class="brg-cz d" style="left:0;width:${dp}%"></div>
+    <div class="brg-cz n" style="left:${dp}%;width:${gp-dp}%"></div>
+    <div class="brg-cz g" style="left:${gp}%;right:0"></div>
+    <div class="brg-cmark" style="left:${dp}%"><span class="brg-clbl">Delay &lt;${band.delay}</span></div>
+    <div class="brg-cmark" style="left:${gp}%"><span class="brg-clbl">Gifted &gt;${band.gifted}</span></div>
+    <div class="brg-needle" style="left:${sp}%" data-v="${score}"></div>`;
+}
+
+function _barCls2(n){
+  if(n===null||typeof n==='string')return'no-data';
+  if(n>=115)return'above';if(n>=85)return'typical';return'below';
+}
+function _dbar2(label,cls,raw,comp,sem,rawStr){
+  const n=typeof comp==='number'?comp:null;
+  const bc=_barCls2(n);
+  const pct=n?Math.min(100,(n/145)*100):0;
+  const pLo=n?Math.min(100,((n-sem)/145)*100):0;
+  const pHi=n?Math.min(100,((n+sem)/145)*100):0;
+  return`<div class="brg-dbar">
+    <div class="brg-dbar-lbl">
+      <span><span class="dl">${label}</span><span class="dc">${_classify2(n)}</span></span>
+      <span><strong>${_fmt2(comp)}</strong>${n?` <span style="color:#aaa;font-size:0.7rem">±${sem}</span>`:''} <span style="color:#aaa;font-size:0.7rem">(${rawStr})</span></span>
+    </div>
+    <div class="brg-dbar-track">
+      ${n?`<div class="brg-sem-band ${bc}" style="left:${pLo}%;width:${pHi-pLo}%"></div>
+           <div class="brg-fill ${bc}" style="width:${pct}%"></div>
+           <div class="brg-avg"></div>`:''}
+    </div>
+  </div>`;
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  _buildAsmts2();
+  _buildSHSE2();
+});
+})();
+</script>
