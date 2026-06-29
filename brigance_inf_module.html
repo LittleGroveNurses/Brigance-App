@@ -1,0 +1,357 @@
+<!--
+  ════════════════════════════════════════════════════════════════════
+  BRIGANCE® Screens III — Infant Data Entry Module (0–11 months)
+  Little Grove · Child, Adolescent & Family Health · App 2
+
+  INTEGRATION:
+  1. The <style> block is in brigance_2yr_module.html — do NOT duplicate it.
+  2. Paste the HTML panels wherever the Brigance section should appear.
+  3. Paste the <script> block before </body>.
+  4. Call  BriganceInitInf({ ageInDays: <number> })  once child DOB is known.
+  5. To retrieve results for parent letter / report:
+       const r = BriganceGetResultsInf();
+       // returns { total, physRaw, langRaw, shRaw, seRaw,
+       //           bandLabel, bandKey, classification,
+       //           delayCutoff, advancedCutoff }
+  6. Show panels via showBrgTabInf(name)  — 'entry' | 'results'
+  ════════════════════════════════════════════════════════════════════
+  NOTE: No Appendix E/F domain composite tables exist for infant screens.
+        Results show total raw score vs. cutoffs only.
+        No SH/SE composite tables for this age group — raw scores only.
+  ════════════════════════════════════════════════════════════════════
+-->
+
+<!-- Brigance Infant panels (add inside your panel container) -->
+<div id="brg-inf-panel-entry" class="brg-panel" style="display:none">
+
+  <div class="brg-band-notice" id="brg-inf-band-notice">
+    ⚠ Age not yet calculated — enter child's DOB and screening date to determine the age band.
+  </div>
+
+  <div class="brg-totals">
+    <h3>Running Score — Infant Screen (0–11 months)</h3>
+    <div class="brg-big"><span id="brg-inf-total">0</span><small id="brg-inf-max"> / —</small></div>
+    <div class="brg-chips" style="grid-template-columns:repeat(4,1fr)">
+      <div class="brg-chip phys"><div class="n" id="brg-inf-p">0</div><div class="lbl">Physical</div></div>
+      <div class="brg-chip lang"><div class="n" id="brg-inf-l">0</div><div class="lbl">Language</div></div>
+      <div class="brg-chip sh"><div class="n" id="brg-inf-sh">0</div><div class="lbl">Self-help</div></div>
+      <div class="brg-chip se"><div class="n" id="brg-inf-se">0</div><div class="lbl">Social-Em.</div></div>
+    </div>
+    <p style="font-size:0.72rem;color:#888;margin-top:8px;text-align:center">
+      ℹ Domain composite scores are not published for infant screens. Total raw score is compared to cutoffs.
+    </p>
+  </div>
+
+  <div id="brg-inf-asmts"></div>
+</div>
+
+<div id="brg-inf-panel-results" class="brg-panel" style="display:none">
+  <div id="brg-inf-results-body">
+    <p style="color:#888;font-size:0.85rem;text-align:center;padding:20px">Complete the Data Sheet, then tap Brigance Results.</p>
+  </div>
+</div>
+
+<!-- ═══════ SCRIPT: paste before </body> ═══════ -->
+<script id="brigance-inf-module">
+(function(){
+// ══════════════════════════════════════════════════════════
+// INFANT ASSESSMENT DATA
+// Source: BRIGANCE® Screens III © 2014 Curriculum Associates
+// Hawker Brownlow Education CA14300
+// ══════════════════════════════════════════════════════════
+const ASMTS_INF=[
+  {code:'1A',domain:'phys',domainLabel:'Physical Development',title:'Gross Motor Skills',pts:1,
+   items:[
+     'Turns head in both directions',
+     'Steadies head',
+     'Rolls partway to side',
+     'Has no head lag when pulled to sitting',
+     'Rolls from back to stomach',
+   ]},
+  {code:'2A',domain:'phys',domainLabel:'Physical Development',title:'Fine Motor Skills',pts:1,
+   items:[
+     'Places fist in mouth',
+     'Glances at hands briefly',
+     'Plays with hands and fingers',
+     'Has hands predominantly open',
+     'Reaches for objects',
+   ]},
+  {code:'3A',domain:'lang',domainLabel:'Language Development',title:'Receptive Language Skills',pts:1,
+   items:[
+     'Startles to loud noises',
+     'Notices faces of others',
+     'Responds with a smile or coo',
+     'Turns head to find sound',
+     'Shows understanding of some words (e.g. bye-bye, mama)',
+   ]},
+  {code:'4A',domain:'lang',domainLabel:'Language Development',title:'Expressive Language Skills',pts:2,
+   items:[
+     'Vocalises at others',
+     '"talks" to objects',
+     'Says multiple syllables',
+     'Babbles, making varying consonant sounds',
+     'Coos and gurgles',
+     'Imitates sounds or words',
+     'Waves "bye-bye"',
+     'Responds to the word give (with gesture)',
+     'Responds to the word give (no gesture)',
+     'Responds to simple commands',
+     'Puts a block into a box on command',
+     'Gives a block on command (no gesture)',
+     'Throws away rubbish on command',
+     'Holds up objects for attention',
+     'Points to objects for attention',
+     'Says real words',
+     'Pretend talks with some real words',
+   ]},
+  {code:'5A',domain:'sh',domainLabel:'Adaptive: Self-help',title:'Self-help Skills',pts:1,
+   items:[
+     'Sucks well, forming a tight seal around nipple when sucking',
+     'Feeds self cracker',
+     'Opens mouth for spoon',
+     'Chews and swallows',
+     'Holds cup with both hands and drinks',
+     'Cooperates in dressing',
+     'Assists in dressing',
+   ]},
+  {code:'6A',domain:'se',domainLabel:'Adaptive: Social-Emotional',title:'Social and Emotional Skills',pts:1,
+   items:[
+     'Looks attentively at your face',
+     'Visually follows person',
+     'Responds with a smile',
+     'Gets excited when a toy is presented',
+     'Smiles, coos or gurgles for attention',
+     'Goes for a toy that is out of reach',
+     'Shows interest in activities of others',
+     'Initiates interactions with other children',
+     'Shows pride in new accomplishments',
+     'Explores and returns to parent/caregiver',
+   ]},
+];
+
+// ── Band data (from BRIGANCE_DATA in index.html) ──
+const BANDS_INF={
+  'inf_0': {label:'Infant – 0 months',  ageRange:'0–14 days',               minDays:0,   maxDays:14,  delay:8,  advanced:14},
+  'inf_1': {label:'Infant – 1 month',   ageRange:'15 days – 1m 14d',        minDays:15,  maxDays:44,  delay:15, advanced:22},
+  'inf_2': {label:'Infant – 2 months',  ageRange:'1m 15d – 2m 14d',         minDays:45,  maxDays:74,  delay:17, advanced:28},
+  'inf_3': {label:'Infant – 3 months',  ageRange:'2m 15d – 3m 14d',         minDays:75,  maxDays:104, delay:19, advanced:32},
+  'inf_4': {label:'Infant – 4 months',  ageRange:'3m 15d – 4m 14d',         minDays:105, maxDays:135, delay:27, advanced:38},
+  'inf_5': {label:'Infant – 5 months',  ageRange:'4m 15d – 5m 14d',         minDays:136, maxDays:166, delay:33, advanced:44},
+  'inf_6': {label:'Infant – 6 months',  ageRange:'5m 15d – 6m 14d',         minDays:167, maxDays:197, delay:36, advanced:51},
+  'inf_7': {label:'Infant – 7 months',  ageRange:'6m 15d – 7m 14d',         minDays:198, maxDays:228, delay:39, advanced:55},
+  'inf_8': {label:'Infant – 8 months',  ageRange:'7m 15d – 8m 14d',         minDays:229, maxDays:259, delay:43, advanced:62},
+  'inf_9': {label:'Infant – 9 months',  ageRange:'8m 15d – 9m 14d',         minDays:260, maxDays:289, delay:57, advanced:68},
+  'inf_10':{label:'Infant – 10 months', ageRange:'9m 15d – 10m 14d',        minDays:290, maxDays:320, delay:60, advanced:75},
+  'inf_11':{label:'Infant – 11 months', ageRange:'10m 15d – 11m 29d',       minDays:321, maxDays:364, delay:67, advanced:82},
+};
+
+// Compute max possible score from all items
+const MAX_INF=ASMTS_INF.reduce((s,a)=>s+a.items.length*a.pts,0);
+
+// ══════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════
+const BSI={checked:{}, ageInDays:null, bandKey:null};
+ASMTS_INF.forEach(a=>{BSI.checked[a.code]=new Set();});
+
+// ══════════════════════════════════════════════════════════
+// PUBLIC API
+// ══════════════════════════════════════════════════════════
+window.BriganceInitInf=function({ageInDays}){
+  BSI.ageInDays=ageInDays;
+  BSI.bandKey=null;
+  for(const[k,v] of Object.entries(BANDS_INF))
+    if(ageInDays>=v.minDays&&ageInDays<=v.maxDays){BSI.bandKey=k;break;}
+  const notice=document.getElementById('brg-inf-band-notice');
+  if(notice){
+    if(!BSI.bandKey){notice.classList.add('show');}
+    else{notice.classList.remove('show');}
+  }
+};
+
+window.BriganceGetResultsInf=function(){
+  const r=_calcInf();
+  const band=BSI.bandKey?BANDS_INF[BSI.bandKey]:null;
+  const cls=_clsInf(r.tot);
+  return{
+    total:r.tot, physRaw:r.phys, langRaw:r.lang, shRaw:r.sh, seRaw:r.se,
+    bandLabel:band?band.label:'—',
+    bandKey:BSI.bandKey||null,
+    classification:cls,
+    delayCutoff:band?band.delay:null,
+    advancedCutoff:band?band.advanced:null,
+  };
+};
+
+window.showBrgTabInf=function(name){
+  document.querySelectorAll('[id^="brg-inf-panel-"]').forEach(p=>p.style.display='none');
+  const panel=document.getElementById('brg-inf-panel-'+name);
+  if(panel)panel.style.display='block';
+  if(name==='results')_renderInfResults();
+};
+
+// ══════════════════════════════════════════════════════════
+// INTERNAL
+// ══════════════════════════════════════════════════════════
+function _calcInf(){
+  let tot=0,phys=0,lang=0,sh=0,se=0;
+  ASMTS_INF.forEach(a=>{
+    const pts=BSI.checked[a.code].size*a.pts; tot+=pts;
+    if(a.domain==='phys')phys+=pts;
+    if(a.domain==='lang')lang+=pts;
+    if(a.domain==='sh')  sh  +=pts;
+    if(a.domain==='se')  se  +=pts;
+  });
+  return{tot,phys,lang,sh,se};
+}
+
+function _clsInf(tot){
+  if(!BSI.bandKey)return'typical';
+  const b=BANDS_INF[BSI.bandKey];
+  if(tot<b.delay)return'delay';
+  if(tot>=b.advanced)return'advanced';
+  return'typical';
+}
+
+function _clsLabelInf(c){
+  return{delay:'Potential Delay',typical:'Typical Development',advanced:'Advanced Development'}[c]||c;
+}
+
+function _buildInfAsmts(){
+  const c=document.getElementById('brg-inf-asmts');if(!c)return;
+  c.innerHTML='';
+  ASMTS_INF.forEach(a=>{
+    const d=document.createElement('div');d.className='brg-asmt';d.id='brg-inf-asmt-'+a.code;
+    d.innerHTML=`<div class="brg-asmt-hdr">
+        <span class="brg-code ${a.domain}">${a.code}</span>
+        <h4>${a.title}</h4>
+        <span class="brg-dtag ${a.domain}">${a.domainLabel}</span>
+        <span class="brg-schip" id="brg-inf-sc-${a.code}">0/${a.items.length*a.pts}</span>
+      </div>
+      <div class="brg-items">${a.items.map((it,i)=>`
+        <div class="brg-item" data-code="${a.code}" data-idx="${i}" onclick="_bToggleInf('${a.code}',${i},this)">
+          <div class="brg-chk"><svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+            <path d="M1.5 5L4.5 8L10.5 1.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <span class="brg-itxt">${it}</span>
+          <span class="brg-ipts">${a.pts}pt</span>
+        </div>`).join('')}
+      </div>
+      <div class="brg-foot"><span>${a.pts} point${a.pts>1?'s':''} per item · max ${a.items.length*a.pts}</span></div>`;
+    c.appendChild(d);
+  });
+}
+
+window._bToggleInf=function(code,idx,row){
+  const s=BSI.checked[code];
+  if(s.has(idx)){s.delete(idx);row.classList.remove('on');}else{s.add(idx);row.classList.add('on');}
+  _recalcInf();
+};
+
+function _recalcInf(){
+  let tot=0,phys=0,lang=0,sh=0,se=0;
+  ASMTS_INF.forEach(a=>{
+    const pts=BSI.checked[a.code].size*a.pts; tot+=pts;
+    if(a.domain==='phys')phys+=pts;
+    if(a.domain==='lang')lang+=pts;
+    if(a.domain==='sh')  sh  +=pts;
+    if(a.domain==='se')  se  +=pts;
+    const ch=document.getElementById('brg-inf-sc-'+a.code);
+    if(ch)ch.textContent=pts+'/'+(a.items.length*a.pts);
+  });
+  const el=id=>document.getElementById(id);
+  if(el('brg-inf-total'))el('brg-inf-total').textContent=tot;
+  if(el('brg-inf-p'))el('brg-inf-p').textContent=phys;
+  if(el('brg-inf-l'))el('brg-inf-l').textContent=lang;
+  if(el('brg-inf-sh'))el('brg-inf-sh').textContent=sh;
+  if(el('brg-inf-se'))el('brg-inf-se').textContent=se;
+}
+
+function _renderInfResults(){
+  const r=_calcInf();
+  const band=BSI.bandKey?BANDS_INF[BSI.bandKey]:null;
+  const cls=_clsInf(r.tot);
+  const body=document.getElementById('brg-inf-results-body');
+  if(!body)return;
+
+  body.innerHTML=`
+    <h3 style="font-size:0.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--teal);margin-bottom:10px">BRIGANCE® Screens III — Infant Screen</h3>
+
+    ${band?`<p style="font-size:0.78rem;color:#666;margin-bottom:8px">
+      Age band: <strong>${band.label}</strong> · ${band.ageRange}
+    </p>`:''}
+
+    <div style="margin-bottom:12px">
+      <span class="brg-result-badge ${cls==='delay'?'delay':cls==='advanced'?'gifted':'typical'}">${_clsLabelInf(cls)}</span>
+      <strong style="font-size:1.3rem;margin-left:8px">${r.tot}</strong>
+      <span style="color:#888"> / ${MAX_INF}</span>
+    </div>
+
+    ${band?`
+    <div class="brg-ctrack" style="margin-bottom:12px">
+      ${_infCutoffBar(r.tot,band)}
+    </div>
+    <p style="font-size:0.74rem;color:#666;margin-bottom:14px">
+      Cutoffs for <strong>${band.label}</strong>:
+      Potential delay &lt;${band.delay} ·
+      Typical development ${band.delay}–${band.advanced-1} ·
+      Advanced development ≥${band.advanced}
+    </p>`:'<p style="font-size:0.78rem;color:#888;margin-bottom:12px">Enter child\'s DOB to display cutoff zones.</p>'}
+
+    <h4 style="font-size:0.76rem;text-transform:uppercase;letter-spacing:.08em;color:var(--teal);margin:0 0 8px">Scores by Domain</h4>
+    <p style="font-size:0.71rem;color:#aaa;margin-bottom:8px">
+      ℹ Domain composite scores (standard scores) are not published for infant screens.
+      Raw domain scores are shown for clinical reference only.
+    </p>
+
+    <table style="width:100%;border-collapse:collapse;font-size:0.82rem;margin-bottom:12px">
+      <thead>
+        <tr style="background:var(--grey);font-size:0.71rem;text-transform:uppercase;letter-spacing:.06em">
+          <th style="text-align:left;padding:7px 10px;font-weight:700;color:var(--teal)">Domain</th>
+          <th style="text-align:right;padding:7px 10px;font-weight:700;color:var(--teal)">Raw</th>
+          <th style="text-align:right;padding:7px 10px;font-weight:700;color:var(--teal)">Max</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${[
+          ['Physical Development','phys',r.phys,10],
+          ['Language Development','lang',r.lang,ASMTS_INF.find(a=>a.code==='4A').items.length*2+5],
+          ['Self-help Skills','sh',r.sh,7],
+          ['Social-Emotional Skills','se',r.se,10],
+        ].map(([lbl,dom,raw,max],i)=>`
+          <tr style="border-bottom:1px solid var(--border);background:${i%2?'#fafbfd':'#fff'}">
+            <td style="padding:8px 10px">
+              <span class="brg-dtag ${dom}" style="margin-right:6px">${dom.toUpperCase()}</span>${lbl}
+            </td>
+            <td style="padding:8px 10px;text-align:right;font-weight:700">${raw}</td>
+            <td style="padding:8px 10px;text-align:right;color:#aaa">${max}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+
+    <p style="font-size:0.69rem;color:#aaa;margin-top:10px">
+      Source: BRIGANCE® Screens III © 2013 Curriculum Associates · Hawker Brownlow Education CA14300 ·
+      Infant screening is criterion-referenced. Cutoffs indicate expected skill acquisition trajectory
+      and are not age-equivalent scores.
+    </p>`;
+}
+
+function _infCutoffBar(score,band){
+  const MAX_SCORE=MAX_INF;
+  const p=v=>Math.min(97,Math.max(3,(v/MAX_SCORE)*100));
+  const sp=p(score),dp=p(band.delay),ap=p(band.advanced);
+  return`<div class="brg-cz d" style="left:0;width:${dp}%"></div>
+    <div class="brg-cz n" style="left:${dp}%;width:${ap-dp}%"></div>
+    <div class="brg-cz g" style="left:${ap}%;right:0"></div>
+    <div class="brg-cmark" style="left:${dp}%"><span class="brg-clbl">Delay &lt;${band.delay}</span></div>
+    <div class="brg-cmark" style="left:${ap}%"><span class="brg-clbl">Advanced ≥${band.advanced}</span></div>
+    <div class="brg-needle" style="left:${sp}%" data-v="${score}"></div>`;
+}
+
+// ══ Init ══
+document.addEventListener('DOMContentLoaded',()=>{
+  _buildInfAsmts();
+  const mx=document.getElementById('brg-inf-max');
+  if(mx)mx.textContent=' / '+MAX_INF;
+});
+})();
+</script>
