@@ -3294,13 +3294,27 @@ function generateResults() {
       });
     }
 
-    // SH/SE: prefer the direct SHSE questionnaire totals if entered
-    // state.shseScores is { itemId: value } from renderSHSEQuestionnaire
-    // getSHSEKey maps band → SH/SE form; calcSHSEScores returns {sh, se}
-    if (typeof calcSHSEScores === 'function') {
-      const shseTotals = calcSHSEScores();
-      if (shseTotals && shseTotals.sh > 0) domRaw.sh = shseTotals.sh;
-      if (shseTotals && shseTotals.se > 0) domRaw.se = shseTotals.se;
+    // SH/SE: if the questionnaire has been completed, use those totals
+    // state.shseScores = { sectionKey: { itemId: value } }
+    // SHSE_DATA[shseKey].selfHelp.sections / .socialEmotional.sections
+    const shseKey2 = getSHSEKey(state.interval);
+    if (shseKey2 && state.shseScores && SHSE_DATA[shseKey2]) {
+      const form = SHSE_DATA[shseKey2];
+      let shTotal = 0, seTotal = 0;
+      (form.selfHelp       ? form.selfHelp.sections       : []).forEach(sec =>
+        sec.items.forEach(item => {
+          shTotal += (state.shseScores[sec.key] && state.shseScores[sec.key][item.id] !== undefined)
+            ? state.shseScores[sec.key][item.id] : 0;
+        })
+      );
+      (form.socialEmotional ? form.socialEmotional.sections : []).forEach(sec =>
+        sec.items.forEach(item => {
+          seTotal += (state.shseScores[sec.key] && state.shseScores[sec.key][item.id] !== undefined)
+            ? state.shseScores[sec.key][item.id] : 0;
+        })
+      );
+      if (shTotal > 0) domRaw.sh = shTotal;
+      if (seTotal > 0) domRaw.se = seTotal;
     }
 
     // Build rows in Brigance domain order
